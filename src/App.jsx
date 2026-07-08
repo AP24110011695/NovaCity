@@ -1,7 +1,7 @@
-import IntroSequence from "./components/IntroSequence";
+import SceneManager from "./components/SceneManager";
 
 function App() {
-  return <IntroSequence />;
+  return <SceneManager />;
 }
 
 export default App;

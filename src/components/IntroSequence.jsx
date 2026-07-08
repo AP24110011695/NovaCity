@@ -1,3 +1,4 @@
+import EnterButton from "./EnterButton";
 import StarField from "./StarField";
 import SpaceBackground from "./SpaceBackground";
 import { useEffect, useMemo, useState } from 'react'
@@ -52,7 +53,7 @@ const generateDust = (count) => {
   }))
 }
 
-const IntroSequence = () => {
+const IntroSequence = ({ onEnter }) => {
   const [phase, setPhase] = useState('black')
 
   const dust = useMemo(() => generateDust(36), [])
@@ -254,17 +255,16 @@ const IntroSequence = () => {
               THE FIRST HUMAN CIVILIZATION BEYOND EARTH
             </motion.p>
 
-            <motion.button
-              initial="hidden"
-              animate="visible"
-              custom={1.6}
-              variants={finalItemVariants}
-              whileHover={{ borderColor: 'rgba(79, 124, 255, 0.5)' }}
-              className="mt-16 rounded-full border border-white/15 bg-white/[0.04] px-12 py-3.5 text-xs font-medium tracking-[0.4em] text-white/90 backdrop-blur-md transition-all duration-500 hover:bg-white/[0.07]"
-              style={{ boxShadow: '0 0 0 rgba(79, 124, 255, 0)' }}
-            >
-              ENTER
-            </motion.button>
+            <motion.div
+  initial="hidden"
+  animate="visible"
+  custom={1.6}
+  variants={finalItemVariants}
+>
+  <EnterButton onClick={onEnter}>
+  ENTER
+</EnterButton>
+</motion.div>
           </div>
         )}
       </div>
