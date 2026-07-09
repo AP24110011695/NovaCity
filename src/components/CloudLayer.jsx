@@ -13,7 +13,6 @@ const cloudVertexShader = `
   varying float vAlpha;
 
   void main() {
-    // Clouds rush toward the camera as uProgress increases.
     vec3 pos = position;
     pos.z += uProgress * aSpeed * 40.0;
     float wrapped = mod(pos.z + 20.0, 40.0) - 20.0;
@@ -24,7 +23,6 @@ const cloudVertexShader = `
     gl_PointSize = aSize * uPixelRatio * sizeBoost * (200.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
 
-    // Density ramps up with progress so the sky fills with cloud coverage.
     vAlpha = clamp(uProgress * 1.6 - aSeed * 0.3, 0.0, 1.0);
   }
 `
@@ -45,8 +43,7 @@ const cloudFragmentShader = `
  * CloudLayer
  * Thin cloud particles that rush toward the camera and thicken into
  * full coverage as `progress` (0 -> 1) advances, driven imperatively
- * from the parent's camera timeline via setProgress(). No React state,
- * no re-renders — a single uniform update per frame.
+ * via setProgress(). No React state, no re-renders.
  */
 const CloudLayer = forwardRef((_, ref) => {
   const materialRef = useRef()

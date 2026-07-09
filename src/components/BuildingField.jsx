@@ -1,32 +1,28 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 
-const BUILDING_COUNT = 46
-const WINDOW_COUNT = 320
+const BUILDING_COUNT = 58
+const WINDOW_COUNT = 420
 
-// Deterministic-feeling layout: a wide grid with jitter so the skyline
-// reads as organic rather than perfectly gridded.
 const generateBuildings = () => {
   const buildings = []
-  const cols = 10
-  const rows = 5
+  const cols = 11
+  const rows = 6
 
   for (let i = 0; i < BUILDING_COUNT; i++) {
     const col = i % cols
     const row = Math.floor(i / cols)
 
-    const spreadX = 46
-    const spreadZ = 30
+    const spreadX = 60
+    const spreadZ = 70
 
-    const x = (col / (cols - 1) - 0.5) * spreadX + (Math.random() - 0.5) * 2.4
-    const z = -8 - (row / (rows - 1)) * spreadZ - Math.random() * 3
+    const x = (col / (cols - 1) - 0.5) * spreadX + (Math.random() - 0.5) * 2.6
+    const z = -6 - (row / (rows - 1)) * spreadZ - Math.random() * 4
 
-    // Buildings closer to camera (smaller row) read taller/more detailed;
-    // distant ones are shorter, hazier silhouettes.
     const depthFactor = 1 - row / rows
-    const height = THREE.MathUtils.lerp(3, 14, Math.random()) * (0.6 + depthFactor * 0.5)
-    const width = Math.random() * 1.2 + 0.9
-    const depth = Math.random() * 1.2 + 0.9
+    const height = THREE.MathUtils.lerp(3, 16, Math.random()) * (0.55 + depthFactor * 0.55)
+    const width = Math.random() * 1.3 + 0.9
+    const depth = Math.random() * 1.3 + 0.9
 
     buildings.push({ x, y: height / 2, z, width, height, depth })
   }
@@ -65,10 +61,7 @@ const BuildingField = () => {
       buildingMeshRef.current.setMatrixAt(i, dummy.matrix)
 
       const shade = 0.03 + Math.random() * 0.05
-      buildingMeshRef.current.setColorAt(
-        i,
-        new THREE.Color(shade, shade * 1.05, shade * 1.25)
-      )
+      buildingMeshRef.current.setColorAt(i, new THREE.Color(shade, shade * 1.05, shade * 1.25))
     })
 
     buildingMeshRef.current.instanceMatrix.needsUpdate = true

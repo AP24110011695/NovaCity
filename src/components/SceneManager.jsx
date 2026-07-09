@@ -14,8 +14,8 @@ const SCENES = {
   CITY: 'city',
 }
 
-const BLACK_HOLD_DURATION = 1500 // intro -> loading black hold
-const MISSION_FADE_DURATION = 350 // space -> atmosphere quick fade
+const BLACK_HOLD_DURATION = 1500
+const MISSION_FADE_DURATION = 350
 const SCENE_FADE_DURATION = 0.8
 
 const sceneVariants = {
@@ -52,9 +52,6 @@ const SceneManager = () => {
     setScene(SCENES.CITY)
   }, [])
 
-  // The atmosphere -> city handoff is a continuous cinematic beat (white
-  // flash into white-fade reveal), so it deliberately bypasses the
-  // generic black crossfade used for every other transition.
   if (scene === SCENES.CITY) {
     return (
       <div className="relative h-screen w-full overflow-hidden bg-black">

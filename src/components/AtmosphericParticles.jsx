@@ -2,19 +2,18 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// Slow-rising ember-like particles, blue/white mix, drifting upward.
 const EmberParticles = () => {
   const pointsRef = useRef()
-  const count = 260
+  const count = 320
 
   const { positions, speeds } = useMemo(() => {
     const positions = new Float32Array(count * 3)
     const speeds = new Float32Array(count)
 
     for (let i = 0; i < count; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 50
+      positions[i * 3] = (Math.random() - 0.5) * 70
       positions[i * 3 + 1] = Math.random() * 14
-      positions[i * 3 + 2] = -6 - Math.random() * 30
+      positions[i * 3 + 2] = -6 - Math.random() * 70
       speeds[i] = Math.random() * 0.3 + 0.1
     }
 
@@ -54,17 +53,15 @@ const EmberParticles = () => {
   )
 }
 
-// A few fast horizontal streaks suggesting distant flying traffic.
 const FlyingStreaks = () => {
-  const groupRef = useRef()
-  const count = 6
+  const count = 8
 
   const streaks = useMemo(() => {
     return Array.from({ length: count }, () => ({
       y: Math.random() * 8 + 1,
-      z: -8 - Math.random() * 24,
+      z: -8 - Math.random() * 60,
       speed: Math.random() * 6 + 4,
-      startX: -30 - Math.random() * 20,
+      startX: -36 - Math.random() * 24,
     }))
   }, [])
 
@@ -74,20 +71,16 @@ const FlyingStreaks = () => {
     refs.current.forEach((mesh, i) => {
       if (!mesh) return
       mesh.position.x += streaks[i].speed * delta
-      if (mesh.position.x > 30) {
+      if (mesh.position.x > 36) {
         mesh.position.x = streaks[i].startX
       }
     })
   })
 
   return (
-    <group ref={groupRef}>
+    <group>
       {streaks.map((s, i) => (
-        <mesh
-          key={i}
-          ref={(el) => (refs.current[i] = el)}
-          position={[s.startX, s.y, s.z]}
-        >
+        <mesh key={i} ref={(el) => (refs.current[i] = el)} position={[s.startX, s.y, s.z]}>
           <planeGeometry args={[0.5, 0.02]} />
           <meshBasicMaterial
             color="#ffffff"
@@ -102,12 +95,6 @@ const FlyingStreaks = () => {
   )
 }
 
-/**
- * AtmosphericParticles
- * Combines slow-rising ember/dust particles with a handful of fast
- * horizontal streaks (distant flying traffic) for a living, layered
- * atmosphere above the skyline.
- */
 const AtmosphericParticles = () => {
   return (
     <>

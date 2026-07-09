@@ -3,12 +3,12 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 const LIGHT_CONFIGS = [
-  { position: [-10, 0, -14], speed: 0.12, tiltSpeed: 0.05, offset: 0 },
-  { position: [8, 0, -20], speed: -0.09, tiltSpeed: 0.04, offset: 2.1 },
-  { position: [2, 0, -30], speed: 0.07, tiltSpeed: 0.06, offset: 4.4 },
+  { position: [-14, 0, -20], speed: 0.12, tiltSpeed: 0.05, offset: 0 },
+  { position: [10, 0, -34], speed: -0.09, tiltSpeed: 0.04, offset: 2.1 },
+  { position: [2, 0, -50], speed: 0.07, tiltSpeed: 0.06, offset: 4.4 },
+  { position: [-6, 0, -62], speed: -0.05, tiltSpeed: 0.045, offset: 1.3 },
 ]
 
-// A single volumetric-looking beam: a soft, elongated additive cone.
 const Beam = ({ position, speed, tiltSpeed, offset }) => {
   const groupRef = useRef()
 
@@ -36,12 +36,6 @@ const Beam = ({ position, speed, tiltSpeed, offset }) => {
   )
 }
 
-/**
- * SearchLights
- * A handful of slow-rotating volumetric-looking search beams sweeping
- * across the skyline. Purely additive-blended cones — no real
- * THREE.SpotLight cost, cheap to render.
- */
 const SearchLights = () => {
   return (
     <>

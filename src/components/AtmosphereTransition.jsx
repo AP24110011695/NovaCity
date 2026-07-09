@@ -1,12 +1,18 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import CloudLayer from './CloudLayer'
 import HeatDistortion from './HeatDistortion'
 
-const TOTAL_DURATION_MS = 4000 // full "Atmospheric Entry" sequence length
+const TOTAL_DURATION_MS = 4600
 
-// Fresnel-style planet + atmosphere, filling the frame as the camera dives in.
+// Ship AI status lines, timed against the descent.
+const AI_LINES = [
+  { text: 'BEGINNING ATMOSPHERIC DESCENT...', at: 150, hold: 1600 },
+  { text: 'HULL TEMPERATURE RISING', at: 2400, hold: 1300 },
+  { text: 'STABILIZING ENTRY VECTOR', at: 3400, hold: 1000 },
+]
+
 const atmosphereVertexShader = `
   varying vec3 vNormal;
   varying vec3 vPosition;
@@ -32,7 +38,6 @@ const atmosphereFragmentShader = `
 `
 
 const DiveSurface = () => {
-  const materialRef = useRef()
   const surfaceRef = useRef()
   const glowRef = useRef()
 
@@ -48,12 +53,7 @@ const DiveSurface = () => {
     <group>
       <mesh ref={surfaceRef} position={[0, 0, -14]}>
         <sphereGeometry args={[10, 64, 64]} />
-        <meshStandardMaterial
-          ref={materialRef}
-          color="#0a0c11"
-          roughness={0.95}
-          metalness={0.05}
-        />
+        <meshStandardMaterial color="#0a0c11" roughness={0.95} metalness={0.05} />
       </mesh>
 
       <mesh ref={glowRef} position={[0, 0, -14]} scale={1.02}>
@@ -74,26 +74,27 @@ const DiveSurface = () => {
   )
 }
 
-// Accelerating dolly-in with increasing handheld shake — never teleports,
-// always eases. Driven purely off the Canvas clock (0 at mount).
+// Natural, accelerating, handheld camera — never robotic, never teleports.
 const DiveCamera = ({ cloudRef }) => {
   useFrame(({ clock, camera }) => {
     const t = Math.min(clock.getElapsedTime() / (TOTAL_DURATION_MS / 1000), 1)
+    const time = clock.getElapsedTime()
 
-    // Accelerating ease — starts slow, ends fast (ease-in cubic).
-    const eased = t * t * t
+    // Ease-in-out acceleration curve — starts gentle, builds speed mid-way,
+    // eases off just before the flash so it doesn't feel mechanical.
+    const eased = t < 0.85 ? Math.pow(t / 0.85, 2.2) : 1
     camera.position.z = THREE.MathUtils.lerp(9, -6, eased)
 
-    // Shake grows with progress, capped near the end.
     const shakeAmount = THREE.MathUtils.smoothstep(t, 0.25, 0.95) * 0.09
-    const time = clock.getElapsedTime()
-    camera.position.x = Math.sin(time * 14.0) * shakeAmount * 0.5
-    camera.position.y = Math.cos(time * 17.0) * shakeAmount * 0.4
-    camera.rotation.z = Math.sin(time * 9.0) * shakeAmount * 0.15
+    const handheldX = Math.sin(time * 3.1) * 0.02 + Math.sin(time * 7.7 + 1.1) * 0.01
+    const handheldY = Math.cos(time * 2.6) * 0.018 + Math.sin(time * 6.3 + 0.4) * 0.008
+
+    camera.position.x = Math.sin(time * 14.0) * shakeAmount * 0.5 + handheldX
+    camera.position.y = Math.cos(time * 17.0) * shakeAmount * 0.4 + handheldY
+    camera.rotation.z = Math.sin(time * 9.0) * shakeAmount * 0.15 + Math.sin(time * 1.7) * 0.003
 
     camera.lookAt(0, 0, -14)
 
-    // Drive cloud density/coverage from the same progress value.
     if (cloudRef.current) {
       cloudRef.current.setProgress(t)
     }
@@ -103,14 +104,63 @@ const DiveCamera = ({ cloudRef }) => {
 }
 
 /**
+ * AIStatusText
+ * Ship AI status lines, timed via setTimeout against TOTAL_DURATION_MS.
+ * Minimal typographic HUD text — no glass panel, just floating text,
+ * consistent with a heads-up display during descent.
+ */
+const AIStatusText = () => {
+  const [activeIndex, setActiveIndex] = useState(null)
+
+  useEffect(() => {
+    const timers = []
+
+    AI_LINES.forEach((line, i) => {
+      timers.push(
+        setTimeout(() => setActiveIndex(i), line.at)
+      )
+      timers.push(
+        setTimeout(() => {
+          setActiveIndex((prev) => (prev === i ? null : prev))
+        }, line.at + line.hold)
+      )
+    })
+
+    return () => timers.forEach(clearTimeout)
+  }, [])
+
+  return (
+    <div className="pointer-events-none absolute bottom-16 left-1/2 -translate-x-1/2 text-center">
+      <style>
+        {`
+          @keyframes ai-text-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+        `}
+      </style>
+      {AI_LINES.map((line, i) => (
+        <p
+          key={line.text}
+          className="text-xs font-light tracking-[0.35em] text-white/70"
+          style={{
+            display: activeIndex === i ? 'block' : 'none',
+            animation: 'ai-text-in 0.8s ease-out forwards',
+          }}
+        >
+          {line.text}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/**
  * AtmosphereTransition
- * The full "Atmospheric Entry" cinematic: accelerating camera dive,
- * growing planet + blue atmospheric glow, thin clouds crossing frame
- * that thicken into full cloud cover, increasing shake, heat
- * distortion, rising brightness, and a 0.4s white flash at the end.
- * Calls onComplete once the white flash begins holding, so the parent
- * can mount CityReveal (which starts from full white) with no visible
- * seam.
+ * Full "Atmospheric Entry" cinematic: ship AI status lines, accelerating
+ * handheld camera dive, growing planet + blue atmospheric glow, thin
+ * distant clouds that thicken into full cover, rising shake, heat
+ * distortion, increasing brightness, and a 0.3s white flash at the end.
  */
 const AtmosphereTransition = ({ onComplete }) => {
   const cloudRef = useRef()
@@ -135,8 +185,8 @@ const AtmosphereTransition = ({ onComplete }) => {
           }
           @keyframes entry-white-flash {
             0%   { opacity: 0; }
-            88%  { opacity: 0; }
-            92%  { opacity: 1; }
+            91%  { opacity: 0; }
+            94%  { opacity: 1; }
             100% { opacity: 1; }
           }
         `}
@@ -159,20 +209,16 @@ const AtmosphereTransition = ({ onComplete }) => {
 
       <HeatDistortion durationMs={TOTAL_DURATION_MS} />
 
-      {/* Rising brightness wash as we approach the surface */}
+      <AIStatusText />
+
       <div
         className="pointer-events-none absolute inset-0 bg-white"
-        style={{
-          animation: `entry-brightness ${TOTAL_DURATION_MS}ms ease-in forwards`,
-        }}
+        style={{ animation: `entry-brightness ${TOTAL_DURATION_MS}ms ease-in forwards` }}
       />
 
-      {/* Final 0.4s white flash */}
       <div
         className="pointer-events-none absolute inset-0 bg-white"
-        style={{
-          animation: `entry-white-flash ${TOTAL_DURATION_MS}ms ease-in forwards`,
-        }}
+        style={{ animation: `entry-white-flash ${TOTAL_DURATION_MS}ms ease-in forwards` }}
       />
     </div>
   )

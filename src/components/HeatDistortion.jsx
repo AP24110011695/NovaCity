@@ -1,10 +1,3 @@
-/**
- * HeatDistortion
- * Fakes heat-haze distortion purely with CSS (SVG turbulence filter +
- * animated backdrop blur) — no postprocessing library, no shader pass.
- * Intensity ramps up via a CSS keyframe timed to match the parent's
- * total transition duration.
- */
 const HeatDistortion = ({ durationMs = 4000 }) => {
   return (
     <>
