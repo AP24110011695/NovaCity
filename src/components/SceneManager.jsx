@@ -3,16 +3,20 @@ import { AnimatePresence, motion } from 'framer-motion'
 import IntroSequence from './IntroSequence'
 import LoadingScene from './LoadingScene'
 import SpaceScene from './SpaceScene'
+import AtmosphereTransition from './AtmosphereTransition'
+import CityReveal from './CityReveal'
 
-// Scene registry — single source of truth for Chapter 1: Arrival.
 const SCENES = {
   INTRO: 'intro',
   LOADING: 'loading',
   SPACE: 'space',
+  ATMOSPHERE: 'atmosphere',
+  CITY: 'city',
 }
 
-const BLACK_HOLD_DURATION = 1500 // ms, black screen hold between intro -> loading
-const SCENE_FADE_DURATION = 0.8 // seconds, crossfade between scenes
+const BLACK_HOLD_DURATION = 1500 // intro -> loading black hold
+const MISSION_FADE_DURATION = 350 // space -> atmosphere quick fade
+const SCENE_FADE_DURATION = 0.8
 
 const sceneVariants = {
   initial: { opacity: 0 },
@@ -26,7 +30,6 @@ const SceneManager = () => {
 
   const handleIntroEnter = useCallback(() => {
     setIsFadingOut(true)
-
     setTimeout(() => {
       setScene(SCENES.LOADING)
       setIsFadingOut(false)
@@ -36,6 +39,29 @@ const SceneManager = () => {
   const handleLoadingComplete = useCallback(() => {
     setScene(SCENES.SPACE)
   }, [])
+
+  const handleEnterMission = useCallback(() => {
+    setIsFadingOut(true)
+    setTimeout(() => {
+      setScene(SCENES.ATMOSPHERE)
+      setIsFadingOut(false)
+    }, MISSION_FADE_DURATION)
+  }, [])
+
+  const handleAtmosphereComplete = useCallback(() => {
+    setScene(SCENES.CITY)
+  }, [])
+
+  // The atmosphere -> city handoff is a continuous cinematic beat (white
+  // flash into white-fade reveal), so it deliberately bypasses the
+  // generic black crossfade used for every other transition.
+  if (scene === SCENES.CITY) {
+    return (
+      <div className="relative h-screen w-full overflow-hidden bg-black">
+        <CityReveal />
+      </div>
+    )
+  }
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-black">
@@ -75,12 +101,24 @@ const SceneManager = () => {
             exit="exit"
             className="absolute inset-0"
           >
-            <SpaceScene />
+            <SpaceScene onEnterMission={handleEnterMission} />
+          </motion.div>
+        )}
+
+        {scene === SCENES.ATMOSPHERE && (
+          <motion.div
+            key="atmosphere"
+            variants={sceneVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            className="absolute inset-0"
+          >
+            <AtmosphereTransition onComplete={handleAtmosphereComplete} />
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Fade-to-black transition overlay, used specifically for intro -> loading */}
       <AnimatePresence>
         {isFadingOut && (
           <motion.div

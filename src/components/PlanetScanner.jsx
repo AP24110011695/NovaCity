@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
-// Sequential HUD phases: signal -> scanning -> data readout -> mission entry.
 const PHASE_TIMINGS = {
-  toSignal: 200,     // delay before "UNKNOWN SIGNAL DETECTED" appears
-  signalHold: 1400,   // how long the signal line stays visible
-  toScanning: 500,    // gap before "SCANNING..." appears
-  scanningHold: 1600, // how long "SCANNING..." stays visible
-  toData: 500,        // gap before data lines start revealing
+  toSignal: 200,
+  signalHold: 1400,
+  toScanning: 500,
+  scanningHold: 1600,
+  toData: 500,
 }
 
 const DATA_ROWS = [
@@ -18,21 +17,13 @@ const DATA_ROWS = [
   { label: 'STATUS', value: 'NOVA CITY DETECTED' },
 ]
 
-const ROW_STAGGER = 550 // ms between each data row reveal
-const MISSION_DELAY_AFTER_ROWS = 700 // ms after last row before ENTER MISSION appears
+const ROW_STAGGER = 550
+const MISSION_DELAY_AFTER_ROWS = 700
 
 const textVariants = {
   hidden: { opacity: 0, y: 14 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] },
-  },
-  exit: {
-    opacity: 0,
-    y: -10,
-    transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
-  },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, y: -10, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
 }
 
 const rowVariants = {
@@ -55,16 +46,15 @@ const missionVariants = {
 
 /**
  * PlanetScanner
- * Spaceship-computer HUD: dark glass panel that reveals a scan sequence
- * one beat at a time (signal -> scanning -> data rows -> mission entry).
- * Fully self-contained timing via useEffect/setTimeout; remounting this
- * component (via a changing `key` from the parent) restarts the sequence
- * cleanly, which is how SpaceScene re-triggers it each loop.
+ * Spaceship-computer HUD scan sequence. Guards against double-triggering
+ * onEnterMission (button disables itself visually after the first click),
+ * since the parent begins an irreversible cinematic transition on call.
  */
 const PlanetScanner = ({ onEnterMission }) => {
-  const [phase, setPhase] = useState('idle') // idle -> signal -> scanning -> data
+  const [phase, setPhase] = useState('idle')
   const [visibleRows, setVisibleRows] = useState(0)
   const [showMission, setShowMission] = useState(false)
+  const [hasEntered, setHasEntered] = useState(false)
 
   useEffect(() => {
     const timers = []
@@ -72,10 +62,7 @@ const PlanetScanner = ({ onEnterMission }) => {
     timers.push(setTimeout(() => setPhase('signal'), PHASE_TIMINGS.toSignal))
 
     timers.push(
-      setTimeout(
-        () => setPhase('signal-out'),
-        PHASE_TIMINGS.toSignal + PHASE_TIMINGS.signalHold
-      )
+      setTimeout(() => setPhase('signal-out'), PHASE_TIMINGS.toSignal + PHASE_TIMINGS.signalHold)
     )
 
     timers.push(
@@ -112,13 +99,17 @@ const PlanetScanner = ({ onEnterMission }) => {
       )
     })
 
-    const missionStart =
-      dataStart + DATA_ROWS.length * ROW_STAGGER + MISSION_DELAY_AFTER_ROWS
-
+    const missionStart = dataStart + DATA_ROWS.length * ROW_STAGGER + MISSION_DELAY_AFTER_ROWS
     timers.push(setTimeout(() => setShowMission(true), missionStart))
 
     return () => timers.forEach(clearTimeout)
   }, [])
+
+  const handleEnterMission = () => {
+    if (hasEntered) return
+    setHasEntered(true)
+    onEnterMission?.()
+  }
 
   const isSignalVisible = phase === 'signal'
   const isScanningVisible = phase === 'scanning'
@@ -126,18 +117,11 @@ const PlanetScanner = ({ onEnterMission }) => {
   return (
     <div className="pointer-events-none flex h-full w-full items-center justify-end px-6 sm:px-12 md:px-20">
       <div
-        className="
-          pointer-events-auto w-full max-w-sm
-          rounded-2xl border border-white/10
-          bg-white/[0.03] backdrop-blur-xl
-          px-7 py-8
-        "
+        className="pointer-events-auto w-full max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] px-7 py-8 backdrop-blur-xl"
         style={{
-          boxShadow:
-            '0 0 40px rgba(79, 124, 255, 0.08), inset 0 0 60px rgba(79, 124, 255, 0.03)',
+          boxShadow: '0 0 40px rgba(79, 124, 255, 0.08), inset 0 0 60px rgba(79, 124, 255, 0.03)',
         }}
       >
-        {/* Status line: signal / scanning */}
         <div className="mb-6 h-5">
           <AnimatePresence mode="wait">
             {isSignalVisible && (
@@ -168,7 +152,6 @@ const PlanetScanner = ({ onEnterMission }) => {
           </AnimatePresence>
         </div>
 
-        {/* Data readout */}
         <div className="flex flex-col gap-4">
           {DATA_ROWS.map((row, i) => (
             <motion.div
@@ -189,32 +172,26 @@ const PlanetScanner = ({ onEnterMission }) => {
           ))}
         </div>
 
-        {/* Mission entry */}
         {showMission && (
           <motion.button
             type="button"
-            onClick={onEnterMission}
+            onClick={handleEnterMission}
+            disabled={hasEntered}
             initial="hidden"
             animate="visible"
             custom={0}
             variants={missionVariants}
-            className="
-              group relative mt-8 w-full cursor-pointer rounded-full
-              border border-white/20 bg-white/[0.05]
-              py-3 text-xs font-medium tracking-[0.35em] text-white/90
-              backdrop-blur-md transition-all duration-[400ms] ease-out
-              hover:border-white/40 hover:bg-white/[0.09]
-            "
+            className="group relative mt-8 w-full cursor-pointer rounded-full border border-white/20 bg-white/[0.05] py-3 text-xs font-medium tracking-[0.35em] text-white/90 backdrop-blur-md transition-all duration-[400ms] ease-out hover:border-white/40 hover:bg-white/[0.09] disabled:cursor-default disabled:opacity-50"
             style={{ boxShadow: '0 0 0 rgba(79, 124, 255, 0)' }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow =
-                '0 0 22px rgba(79, 124, 255, 0.3)'
+              if (hasEntered) return
+              e.currentTarget.style.boxShadow = '0 0 22px rgba(79, 124, 255, 0.3)'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.boxShadow = '0 0 0 rgba(79, 124, 255, 0)'
             }}
           >
-            ENTER MISSION
+            {hasEntered ? 'ENTERING...' : 'ENTER MISSION'}
           </motion.button>
         )}
       </div>

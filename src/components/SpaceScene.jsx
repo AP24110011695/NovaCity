@@ -4,9 +4,8 @@ import * as THREE from 'three'
 import Planet from './Planet'
 import PlanetScanner from './PlanetScanner'
 
-const LOOP_DURATION = 40 // seconds
-const HUD_DELAY_MS = 26500 // ms into the loop when the scan HUD begins fading in
-// (orbital ring reveal completes at ~26.5s per Planet/Timeline timing)
+const LOOP_DURATION = 40
+const HUD_DELAY_MS = 26500
 
 const triangle = (riseStart, riseEnd, fallStart, fallEnd, x) => {
   const rise = THREE.MathUtils.smoothstep(x, riseStart, riseEnd)
@@ -19,11 +18,6 @@ const SceneFog = () => {
   scene.fog = new THREE.FogExp2('#050608', 0.045)
   return null
 }
-
-// ------------------------------------------------------------------
-// Cinematic starfield — custom shader points. Varied size, brightness,
-// white/blue tint, and slow independent twinkle per star.
-// ------------------------------------------------------------------
 
 const starVertexShader = `
   attribute float aSize;
@@ -153,11 +147,6 @@ const VolumetricGlow = () => {
   )
 }
 
-// ------------------------------------------------------------------
-// Depth-layered dust: near particles are larger, faster, more opaque;
-// far particles are tiny, slow, and faint.
-// ------------------------------------------------------------------
-
 const DustLayer = ({ count, zRange, speed, size, opacity, spread }) => {
   const pointsRef = useRef()
 
@@ -203,10 +192,6 @@ const FloatingDust = () => (
     <DustLayer count={220} zRange={[-14, -4]} speed={0.005} size={0.02} opacity={0.16} spread={30} />
   </>
 )
-
-// ------------------------------------------------------------------
-// Master timeline: handheld cinematic camera + all cross-fade timing.
-// ------------------------------------------------------------------
 
 const Timeline = ({ planetRef }) => {
   useFrame(({ clock, camera }) => {
@@ -277,15 +262,6 @@ const SceneContent = () => {
   )
 }
 
-/**
- * SpaceScene — "First Contact" + Scan HUD
- * Cinematic planet sequence as before. Once the orbital ring finishes
- * revealing, a spaceship-computer scan HUD (PlanetScanner) fades in
- * over the scene, running its own reveal sequence. The HUD is remounted
- * each 40s loop (via `hudKey`) so its internal timers restart cleanly
- * alongside the visual loop — no shared mutable state, no extra
- * re-renders of the Three.js tree.
- */
 const SpaceScene = ({ onEnterMission }) => {
   const [showHud, setShowHud] = useState(false)
   const [hudKey, setHudKey] = useState(0)
@@ -348,7 +324,6 @@ const SpaceScene = ({ onEnterMission }) => {
         <SceneContent />
       </Canvas>
 
-      {/* Fake bloom illusion, approximated at the planet's on-screen position */}
       <div
         className="pointer-events-none absolute left-[58%] top-[46%] h-[420px] w-[420px] rounded-full mix-blend-screen"
         style={{
@@ -359,7 +334,6 @@ const SpaceScene = ({ onEnterMission }) => {
         }}
       />
 
-      {/* Soft blue lens haze, upper-left corner */}
       <div
         className="pointer-events-none absolute -left-20 -top-20 h-[500px] w-[500px] rounded-full mix-blend-screen"
         style={{
@@ -369,16 +343,13 @@ const SpaceScene = ({ onEnterMission }) => {
         }}
       />
 
-      {/* Vignette */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background:
-            'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.7) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.7) 100%)',
         }}
       />
 
-      {/* AI scan HUD — appears after the orbital ring reveal completes */}
       {showHud && (
         <div
           className="absolute inset-0 z-[5]"
@@ -388,7 +359,6 @@ const SpaceScene = ({ onEnterMission }) => {
         </div>
       )}
 
-      {/* Seamless loop mask */}
       <div
         className="pointer-events-none absolute inset-0 z-10 bg-black"
         style={{ animation: 'loop-fade 40s linear infinite' }}
