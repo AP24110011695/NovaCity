@@ -15,7 +15,7 @@ const triangle = (riseStart, riseEnd, fallStart, fallEnd, x) => {
 
 const SceneFog = () => {
   const { scene } = useThree()
-  scene.fog = new THREE.FogExp2('#050608', 0.045)
+  scene.fog = new THREE.FogExp2('#04060A', 0.028)
   return null
 }
 
@@ -124,28 +124,7 @@ const CinematicStars = () => {
   )
 }
 
-const VolumetricGlow = () => {
-  const ref = useRef()
 
-  useFrame(({ clock }) => {
-    if (!ref.current) return
-    const t = clock.getElapsedTime()
-    ref.current.material.opacity = 0.08 + Math.sin(t * 0.12) * 0.02
-  })
-
-  return (
-    <mesh ref={ref} position={[0, 0, -6]} scale={[9, 9, 1]}>
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial
-        color="#4F7CFF"
-        transparent
-        opacity={0.08}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
-    </mesh>
-  )
-}
 
 const DustLayer = ({ count, zRange, speed, size, opacity, spread }) => {
   const pointsRef = useRef()
@@ -189,7 +168,7 @@ const FloatingDust = () => (
   <>
     <DustLayer count={90} zRange={[2, 6]} speed={0.02} size={0.05} opacity={0.4} spread={16} />
     <DustLayer count={160} zRange={[-4, 2]} speed={0.01} size={0.032} opacity={0.28} spread={22} />
-    <DustLayer count={220} zRange={[-14, -4]} speed={0.005} size={0.02} opacity={0.16} spread={30} />
+    <DustLayer count={120} zRange={[-14, -4]} speed={0.005} size={0.02} opacity={0.16} spread={30} />
   </>
 )
 
@@ -201,8 +180,8 @@ const Timeline = ({ planetRef }) => {
     const handle = planetRef.current
     if (!handle) return
 
-    const approach = THREE.MathUtils.smoothstep(phase, 7, 38)
-    const baseDistance = THREE.MathUtils.lerp(20, 7, approach)
+    const approach = THREE.MathUtils.smoothstep(phase, 5.5, 36)
+    const baseDistance = THREE.MathUtils.lerp(26, 5.2, approach)
 
     const breathing = Math.sin(elapsed * 0.15) * 0.12
     const handX = Math.sin(elapsed * 0.37) * 0.012 + Math.sin(elapsed * 0.91 + 1.3) * 0.006
@@ -210,10 +189,10 @@ const Timeline = ({ planetRef }) => {
     const roll = Math.sin(elapsed * 0.08) * 0.01 + Math.sin(elapsed * 0.21 + 2.0) * 0.005
 
     camera.position.z = baseDistance + breathing
-    camera.position.x = Math.sin(elapsed * 0.05) * 0.5 + handX
-    camera.position.y = Math.cos(elapsed * 0.045) * 0.3 + handY
+    camera.position.x = -0.7 + Math.sin(elapsed * 0.05) * 0.35 + handX
+    camera.position.y = -0.25 + Math.cos(elapsed * 0.045) * 0.18 + handY
 
-    camera.lookAt(0, 0, -6)
+    camera.lookAt(0.8, 0.45, -6)
     camera.rotation.z += roll
 
     const beaconOpacity = triangle(5, 6, 8.5, 10.5, phase)
@@ -250,11 +229,11 @@ const SceneContent = () => {
   return (
     <>
       <SceneFog />
-      <ambientLight intensity={0.045} color="#4F7CFF" />
+      
 
       <CinematicStars />
-      <VolumetricGlow />
-      <Planet ref={planetRef} position={[1.2, 0.2, -6]} radius={2.4} />
+      
+      <Planet ref={planetRef} position={[3.0, -0.1, -6]} radius={3.8} />
       <FloatingDust />
 
       <Timeline planetRef={planetRef} />
@@ -290,7 +269,7 @@ const SpaceScene = ({ onEnterMission }) => {
   }, [])
 
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#050608]">
+    <div className="relative h-screen w-full overflow-hidden bg-[#020305]">
       <style>
         {`
           @keyframes loop-fade {
@@ -315,24 +294,16 @@ const SpaceScene = ({ onEnterMission }) => {
       </style>
 
       <Canvas
-        camera={{ position: [0, 0, 20], fov: 45 }}
+        camera={{ position: [-1, 0, 32], fov: 34 }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         dpr={[1, 1.5]}
         className="absolute inset-0"
       >
-        <color attach="background" args={['#050608']} />
+        <color attach="background" args={['#020305']} />
         <SceneContent />
       </Canvas>
 
-      <div
-        className="pointer-events-none absolute left-[58%] top-[46%] h-[420px] w-[420px] rounded-full mix-blend-screen"
-        style={{
-          background:
-            'radial-gradient(circle, rgba(180,200,255,0.35) 0%, rgba(79,124,255,0.15) 40%, transparent 70%)',
-          filter: 'blur(28px)',
-          animation: 'bloom-pulse 9s ease-in-out infinite',
-        }}
-      />
+      
 
       <div
         className="pointer-events-none absolute -left-20 -top-20 h-[500px] w-[500px] rounded-full mix-blend-screen"
@@ -346,7 +317,7 @@ const SpaceScene = ({ onEnterMission }) => {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,0.7) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 28%, rgba(0,0,0,0.92) 100%)',
         }}
       />
 

@@ -14,15 +14,23 @@ const SCENES = {
   CITY: 'city',
 }
 
-const BLACK_HOLD_DURATION = 1500
+const BLACK_HOLD_DURATION = 2200
 const MISSION_FADE_DURATION = 350
-const SCENE_FADE_DURATION = 0.8
+const SCENE_FADE_DURATION = 1.4
 
 const sceneVariants = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: SCENE_FADE_DURATION, ease: 'easeInOut' } },
-  exit: { opacity: 0, transition: { duration: SCENE_FADE_DURATION, ease: 'easeInOut' } },
+  animate: {
+    opacity: 1,
+    transition: { duration: SCENE_FADE_DURATION, ease: [0.22, 0.68, 0.35, 1] },
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: SCENE_FADE_DURATION, ease: [0.22, 0.68, 0.35, 1] },
+  },
 }
+
+const LETTERBOX_HEIGHT = '5.5%'
 
 const SceneManager = () => {
   const [scene, setScene] = useState(SCENES.INTRO)
@@ -56,6 +64,16 @@ const SceneManager = () => {
     return (
       <div className="relative h-screen w-full overflow-hidden bg-black">
         <CityReveal />
+
+        {/* Cinematic letterbox bars */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-[60] bg-black"
+          style={{ height: LETTERBOX_HEIGHT }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[60] bg-black"
+          style={{ height: LETTERBOX_HEIGHT }}
+        />
       </div>
     )
   }
@@ -123,11 +141,21 @@ const SceneManager = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: 'easeInOut' }}
+            transition={{ duration: 1.0, ease: [0.22, 0.68, 0.35, 1] }}
             className="pointer-events-none absolute inset-0 z-50 bg-black"
           />
         )}
       </AnimatePresence>
+
+      {/* Cinematic letterbox bars */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-[60] bg-black"
+        style={{ height: LETTERBOX_HEIGHT }}
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[60] bg-black"
+        style={{ height: LETTERBOX_HEIGHT }}
+      />
     </div>
   )
 }
