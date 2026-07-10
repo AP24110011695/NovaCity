@@ -3,8 +3,8 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 const RADIUS = 54
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
-const TOTAL_DURATION = 5000
-const COMPLETE_HOLD = 600
+const TOTAL_DURATION = 4000
+const COMPLETE_HOLD = 500
 
 const STATUS_MESSAGES = [
   { text: 'Initializing Core Systems...', at: 0 },

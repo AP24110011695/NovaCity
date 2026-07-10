@@ -1,16 +1,43 @@
 @import "tailwindcss";
 
+:root {
+  --nova-bg: #080a10;
+  --nova-surface: rgba(8, 10, 16, 0.55);
+  --nova-accent: #4f7cff;
+  --nova-accent-soft: rgba(79, 124, 255, 0.12);
+  --nova-border: rgba(255, 255, 255, 0.1);
+  --nova-ease: cubic-bezier(0.22, 0.68, 0.35, 1);
+}
+
 html,
 body,
 #root {
-    width: 100%;
-    height: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 body {
-    margin: 0;
-    background: #050608;
-    color: white;
-    overflow: hidden;
-    font-family: Inter, sans-serif;
+  margin: 0;
+  background: var(--nova-bg);
+  color: white;
+  overflow: hidden;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+html.portfolio-mode,
+body.portfolio-mode,
+#root.portfolio-mode {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: rgba(79, 124, 255, 0.35);
+  color: white;
 }

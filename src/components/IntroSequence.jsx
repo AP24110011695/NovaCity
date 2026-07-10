@@ -9,9 +9,9 @@ const PHASE_TIMINGS = {
   toTransmission: 800,   // silence before "TRANSMISSION INCOMING"
   transmissionHold: 1400, // how long transmission text stays
   toYear: 2200,          // black screen before "YEAR 2178" appears (from transmission end)
-  yearHold: 3000,        // how long "YEAR 2178" stays visible
+  yearHold: 2200,        // how long "YEAR 2178" stays visible
   toEarth: 1200,         // fade-out gap before earth line appears
-  earthHold: 3200,       // how long the earth line stays visible
+  earthHold: 2400,       // how long the earth line stays visible
   toFinal: 1400,         // fade-out gap before final reveal
 }
 
@@ -390,15 +390,14 @@ const IntroSequence = ({ onEnter }) => {
             </motion.p>
 
             <motion.div
-  initial="hidden"
-  animate="visible"
-  custom={1.6}
-  variants={finalItemVariants}
->
-  <EnterButton onClick={onEnter}>
-  ENTER
-</EnterButton>
-</motion.div>
+              initial="hidden"
+              animate="visible"
+              custom={1.6}
+              variants={finalItemVariants}
+              className="mt-16 md:mt-20"
+            >
+              <EnterButton onClick={onEnter}>ENTER</EnterButton>
+            </motion.div>
           </div>
         )}
       </div>

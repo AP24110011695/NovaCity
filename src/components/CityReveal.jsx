@@ -1,139 +1,303 @@
-import { useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
+
 import * as THREE from 'three'
+
 import BuildingField from './BuildingField'
+
 import SearchLights from './SearchLights'
+
 import GroundFog from './GroundFog'
+
 import AtmosphericParticles from './AtmosphericParticles'
 
-const SceneFog = () => {
+import CameraDirector from './CameraDirector'
+
+
+
+const ARRIVAL_KEYFRAMES = [
+
+  { time: 0, pos: [0, 4, 14], lookAt: [0, 3, -20], fov: 55, ease: 'easeInOutCubic' },
+
+  { time: 3.5, pos: [6, 5.5, -6], lookAt: [0, 5, -30], fov: 50, ease: 'easeOutCubic' },
+
+  { time: 7, pos: [2, 6, -28], lookAt: [0, 8, -45], fov: 46, ease: 'easeOutExpo' },
+
+  { time: 11, pos: [0, 7, -38], lookAt: [0, 10, -50], fov: 42, ease: 'easeOutExpo' },
+
+]
+
+
+
+const SETTLED_POS = new THREE.Vector3(0, 7, -38)
+
+const SETTLED_LOOK = new THREE.Vector3(0, 10, -50)
+
+
+
+const SceneFog = ({ dimmed }) => {
+
   const { scene } = useThree()
-  scene.fog = new THREE.FogExp2('#080a10', 0.02)
+
+  scene.fog = new THREE.FogExp2('#080a10', dimmed ? 0.028 : 0.02)
+
   return null
+
 }
 
-// A gentle, continuous fly-through path over the skyline — a Catmull-Rom
-// curve sampled by elapsed time, looping seamlessly. Handheld micro-motion
-// layered on top for a natural, non-robotic feel.
-const FlyThroughCamera = () => {
-  const curve = useMemo(() => {
-    const points = [
-      new THREE.Vector3(0, 4, 14),
-      new THREE.Vector3(10, 5.5, -6),
-      new THREE.Vector3(4, 6.5, -28),
-      new THREE.Vector3(-9, 5, -48),
-      new THREE.Vector3(-2, 6, -68),
-      new THREE.Vector3(6, 5.5, -50),
-      new THREE.Vector3(10, 5, -24),
-      new THREE.Vector3(0, 4, 14),
-    ]
-    return new THREE.CatmullRomCurve3(points, true, 'catmullrom', 0.5)
-  }, [])
 
-  const CYCLE_DURATION = 70 // seconds for one full loop of the path
+
+const SettledCamera = () => {
 
   useFrame(({ clock, camera }) => {
+
     const t = clock.getElapsedTime()
-    const progress = (t % CYCLE_DURATION) / CYCLE_DURATION
 
-    const position = curve.getPointAt(progress)
-    const lookAheadProgress = (progress + 0.02) % 1
-    const lookAtPoint = curve.getPointAt(lookAheadProgress)
+    const handheldX = Math.sin(t * 1.7) * 0.03 + Math.sin(t * 4.1 + 1.0) * 0.012
 
-    const handheldX = Math.sin(t * 1.7) * 0.05 + Math.sin(t * 4.1 + 1.0) * 0.02
-    const handheldY = Math.cos(t * 1.3) * 0.04 + Math.sin(t * 3.3 + 0.6) * 0.015
+    const handheldY = Math.cos(t * 1.3) * 0.025 + Math.sin(t * 3.3 + 0.6) * 0.01
 
-    camera.position.set(position.x + handheldX, position.y + handheldY, position.z)
-    camera.lookAt(lookAtPoint.x, lookAtPoint.y - 1, lookAtPoint.z)
-    camera.rotation.z = Math.sin(t * 0.4) * 0.006
+
+
+    camera.position.set(
+
+      SETTLED_POS.x + handheldX,
+
+      SETTLED_POS.y + handheldY,
+
+      SETTLED_POS.z,
+
+    )
+
+    camera.lookAt(SETTLED_LOOK.x, SETTLED_LOOK.y, SETTLED_LOOK.z)
+
+    camera.rotation.z = Math.sin(t * 0.4) * 0.004
+
+
+
+    if (Math.abs(camera.fov - 42) > 0.01) {
+
+      camera.fov = 42
+
+      camera.updateProjectionMatrix()
+
+    }
+
+  })
+
+
+
+  return null
+
+}
+
+
+
+const VolumetricSkyGlow = ({ dimmed }) => {
+
+  const ref = useRef()
+
+
+
+  useFrame(({ clock }) => {
+
+    if (!ref.current) return
+
+    const t = clock.getElapsedTime()
+
+    const base = dimmed ? 0.06 : 0.1
+
+    ref.current.material.opacity = base + Math.sin(t * 0.1) * 0.02
+
+  })
+
+
+
+  return (
+
+    <mesh ref={ref} position={[0, 8, -40]} scale={[70, 30, 1]}>
+
+      <planeGeometry args={[1, 1]} />
+
+      <meshBasicMaterial
+
+        color="#4F7CFF"
+
+        transparent
+
+        opacity={0.1}
+
+        blending={THREE.AdditiveBlending}
+
+        depthWrite={false}
+
+      />
+
+    </mesh>
+
+  )
+
+}
+
+
+
+const BuildingRevealDriver = ({ onProgress }) => {
+
+  useFrame(({ clock }) => {
+
+    const t = clock.getElapsedTime()
+
+    const progress = THREE.MathUtils.smoothstep(t, 1.2, 4.5)
+
+    onProgress(progress)
+
   })
 
   return null
+
 }
 
-const VolumetricSkyGlow = () => {
-  const ref = useRef()
 
-  useFrame(({ clock }) => {
-    if (!ref.current) return
-    const t = clock.getElapsedTime()
-    ref.current.material.opacity = 0.1 + Math.sin(t * 0.1) * 0.03
-  })
+
+const SceneContent = ({ phase, onSettled, dimmed, revealProgress }) => {
+
+  const handleArrivalComplete = useCallback(() => {
+
+    onSettled?.()
+
+  }, [onSettled])
+
+
+
+  const keyframes = useMemo(() => ARRIVAL_KEYFRAMES, [])
+
+
 
   return (
-    <mesh ref={ref} position={[0, 8, -40]} scale={[70, 30, 1]}>
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial
-        color="#4F7CFF"
-        transparent
-        opacity={0.1}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
-    </mesh>
+
+    <>
+
+      <SceneFog dimmed={dimmed} />
+
+      {phase === 'settled' ? (
+
+        <SettledCamera />
+
+      ) : (
+
+        <>
+
+          <CameraDirector
+
+            keyframes={keyframes}
+
+            playing
+
+            loop={false}
+
+            onComplete={handleArrivalComplete}
+
+          />
+
+          <BuildingRevealDriver onProgress={(p) => { revealProgress.current = p }} />
+
+        </>
+
+      )}
+
+
+
+      <ambientLight intensity={dimmed ? 0.04 : 0.06} color="#4F7CFF" />
+
+      <hemisphereLight args={['#1a2440', '#020204', dimmed ? 0.18 : 0.25]} />
+
+
+
+      <VolumetricSkyGlow dimmed={dimmed} />
+
+      <BuildingField revealProgressRef={revealProgress} />
+
+      <SearchLights />
+
+      <GroundFog />
+
+      <AtmosphericParticles />
+
+    </>
+
   )
+
 }
 
-const SceneContent = () => (
-  <>
-    <SceneFog />
-    <FlyThroughCamera />
 
-    <ambientLight intensity={0.06} color="#4F7CFF" />
-    <hemisphereLight args={['#1a2440', '#020204', 0.25]} />
 
-    <VolumetricSkyGlow />
-    <BuildingField />
-    <SearchLights />
-    <GroundFog />
-    <AtmosphericParticles />
-  </>
-)
+const CityReveal = ({ phase = 'flythrough', onSettled, dimmed = false }) => {
+  const revealProgress = useRef(0)
 
-/**
- * CityReveal
- * Cinematic placeholder skyline: 58 instanced procedural buildings with
- * blue window lights, sweeping search beams, low ground fog, rising
- * embers, distant flying streaks, volumetric sky glow, and a slow
- * continuous fly-through camera following a looping Catmull-Rom path
- * with handheld micro-motion layered on top. Mounts starting from full
- * white to match the end of AtmosphereTransition's flash.
- */
-const CityReveal = () => {
+  useEffect(() => {
+    if (phase === 'settled') revealProgress.current = 1
+  }, [phase])
+
+
+
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#080a10]">
-      <style>
-        {`
-          @keyframes city-reveal-fade {
-            0%   { opacity: 1; }
-            100% { opacity: 0; }
-          }
-        `}
-      </style>
+
+    <div className="relative h-full min-h-screen w-full overflow-hidden bg-[#080a10]">
 
       <Canvas
+
         camera={{ position: [0, 4, 14], fov: 55 }}
+
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        dpr={[1, 1.5]}
+
+        dpr={dimmed ? [1, 1.25] : [1, 1.5]}
+
         className="absolute inset-0"
+
       >
+
         <color attach="background" args={['#080a10']} />
-        <SceneContent />
+
+        <SceneContent
+
+          phase={phase}
+
+          onSettled={onSettled}
+
+          dimmed={dimmed}
+
+          revealProgress={revealProgress}
+
+        />
+
       </Canvas>
 
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%)',
-        }}
-      />
+
 
       <div
-        className="pointer-events-none absolute inset-0 bg-white"
-        style={{ animation: 'city-reveal-fade 1s ease-out forwards' }}
+
+        className="pointer-events-none absolute inset-0"
+
+        style={{
+
+          background: dimmed
+
+            ? 'radial-gradient(ellipse at center, transparent 35%, rgba(8,10,16,0.55) 100%)'
+
+            : 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%)',
+
+        }}
+
       />
+
     </div>
+
   )
+
 }
 
+
+
 export default CityReveal
+

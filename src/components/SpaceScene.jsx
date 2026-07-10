@@ -4,8 +4,8 @@ import * as THREE from 'three'
 import Planet from './Planet'
 import PlanetScanner from './PlanetScanner'
 
-const LOOP_DURATION = 40
-const HUD_DELAY_MS = 26500
+const LOOP_DURATION = 38
+const HUD_DELAY_MS = 22000
 
 const triangle = (riseStart, riseEnd, fallStart, fallEnd, x) => {
   const rise = THREE.MathUtils.smoothstep(x, riseStart, riseEnd)
@@ -124,8 +124,6 @@ const CinematicStars = () => {
   )
 }
 
-
-
 const DustLayer = ({ count, zRange, speed, size, opacity, spread }) => {
   const pointsRef = useRef()
 
@@ -172,25 +170,140 @@ const FloatingDust = () => (
   </>
 )
 
-const Timeline = ({ planetRef }) => {
+const DebrisField = ({ intensityRef }) => {
+  const ref = useRef()
+  const count = 180
+
+  const positions = useMemo(() => {
+    const arr = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + (i % 7) * 0.15
+      const radius = 5.5 + (i % 5) * 0.44
+      arr[i * 3] = Math.cos(angle) * radius + 3
+      arr[i * 3 + 1] = ((i % 11) / 11 - 0.5) * 3.5 - 0.1
+      arr[i * 3 + 2] = Math.sin(angle) * radius - 6
+    }
+    return arr
+  }, [])
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    const intensity = intensityRef.current.debris
+    ref.current.rotation.y = clock.getElapsedTime() * (0.08 + intensity * 0.25)
+    ref.current.material.opacity = intensity * 0.55
+  })
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+      </bufferGeometry>
+      <pointsMaterial
+        color="#8aa4ff"
+        size={0.06}
+        sizeAttenuation
+        transparent
+        opacity={0}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
+  )
+}
+
+const MeteorStreak = ({ intensityRef }) => {
+  const ref = useRef()
+  const trailRef = useRef()
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    const intensity = intensityRef.current.meteor
+    const startX = -14
+    const endX = 5
+    const x = THREE.MathUtils.lerp(startX, endX, intensity)
+    const y = THREE.MathUtils.lerp(6, -1.5, intensity)
+    const z = THREE.MathUtils.lerp(-2, -7, intensity)
+
+    ref.current.position.set(x + 3, y, z)
+    ref.current.material.opacity = intensity * 0.95
+    ref.current.scale.setScalar(0.15 + intensity * 0.35)
+
+    if (trailRef.current) {
+      trailRef.current.position.set(x + 2.2, y + 0.4, z + 0.8)
+      trailRef.current.rotation.z = Math.atan2(-(y - 6), x - startX + 0.01)
+      trailRef.current.material.opacity = intensity * 0.5
+      trailRef.current.scale.set(2.5 + intensity * 4, 0.04 + intensity * 0.06, 1)
+    }
+  })
+
+  return (
+    <group>
+      <mesh ref={ref}>
+        <sphereGeometry args={[1, 12, 12]} />
+        <meshBasicMaterial color="#ffeedd" transparent opacity={0} toneMapped={false} />
+      </mesh>
+      <mesh ref={trailRef} rotation={[0, 0, -0.6]}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial
+          color="#ffaa66"
+          transparent
+          opacity={0}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
+    </group>
+  )
+}
+
+const ShockwaveRing = ({ intensityRef }) => {
+  const ref = useRef()
+
+  useFrame(() => {
+    if (!ref.current) return
+    const intensity = intensityRef.current.shock
+    const scale = 1 + intensity * 0.45
+    ref.current.scale.setScalar(scale)
+    ref.current.material.opacity = intensity * 0.35
+  })
+
+  return (
+    <mesh ref={ref} position={[3, -0.1, -6]} rotation={[Math.PI / 2.2, 0, 0]}>
+      <ringGeometry args={[4.2, 4.28, 128]} />
+      <meshBasicMaterial
+        color="#4F7CFF"
+        transparent
+        opacity={0}
+        side={THREE.DoubleSide}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </mesh>
+  )
+}
+
+const Timeline = ({ planetRef, eventsRef }) => {
   useFrame(({ clock, camera }) => {
     const elapsed = clock.getElapsedTime()
-    const phase = elapsed % LOOP_DURATION
+    const phase = Math.min(elapsed, LOOP_DURATION)
 
     const handle = planetRef.current
     if (!handle) return
 
-    const approach = THREE.MathUtils.smoothstep(phase, 5.5, 36)
-    const baseDistance = THREE.MathUtils.lerp(26, 5.2, approach)
+    const approach = THREE.MathUtils.smoothstep(phase, 5.5, 34)
+    const baseDistance = THREE.MathUtils.lerp(26, 4.6, approach)
 
     const breathing = Math.sin(elapsed * 0.15) * 0.12
     const handX = Math.sin(elapsed * 0.37) * 0.012 + Math.sin(elapsed * 0.91 + 1.3) * 0.006
     const handY = Math.sin(elapsed * 0.29 + 0.7) * 0.01 + Math.cos(elapsed * 0.53) * 0.005
     const roll = Math.sin(elapsed * 0.08) * 0.01 + Math.sin(elapsed * 0.21 + 2.0) * 0.005
 
+    const tensionShake = triangle(29, 30, 36, 38, phase) * 0.04
     camera.position.z = baseDistance + breathing
-    camera.position.x = -0.7 + Math.sin(elapsed * 0.05) * 0.35 + handX
-    camera.position.y = -0.25 + Math.cos(elapsed * 0.045) * 0.18 + handY
+    camera.position.x = -0.7 + Math.sin(elapsed * 0.05) * 0.35 + handX + Math.sin(elapsed * 8) * tensionShake
+    camera.position.y = -0.25 + Math.cos(elapsed * 0.045) * 0.18 + handY + Math.cos(elapsed * 7) * tensionShake * 0.6
 
     camera.lookAt(0.8, 0.45, -6)
     camera.rotation.z += roll
@@ -204,19 +317,40 @@ const Timeline = ({ planetRef }) => {
     if (handle.planetMaterial) {
       handle.planetMaterial.uniforms.uOpacity.value = planetOpacity
     }
-    if (handle.atmosphereUniforms) {
-      handle.atmosphereUniforms.intensity.value = 0.2 + planetOpacity * 0.9
-    }
 
-    const ringOpacity = THREE.MathUtils.smoothstep(phase, 24, 26.5)
+    const ringOpacity = THREE.MathUtils.smoothstep(phase, 22, 25)
     if (handle.ringMesh) {
       handle.ringMesh.material.opacity = ringOpacity * 0.5
     }
 
-    const ringLightsOpacity = THREE.MathUtils.smoothstep(phase, 29, 31.5)
+    const ringLightsOpacity = THREE.MathUtils.smoothstep(phase, 26, 28)
     if (handle.ringLights) {
       handle.ringLights.material.opacity = ringLightsOpacity
       handle.ringLights.rotation.z += 0.0002 + ringLightsOpacity * 0.0003
+    }
+
+    const debris = triangle(27, 28.5, 33, 34.5, phase)
+    const meteor = triangle(29.5, 30.5, 32.5, 33.5, phase)
+    const shock = triangle(32.5, 33, 36, 37.5, phase)
+    const city = THREE.MathUtils.smoothstep(phase, 35, 39)
+
+    eventsRef.current.debris = debris
+    eventsRef.current.meteor = meteor
+    eventsRef.current.shock = shock
+    eventsRef.current.city = city
+
+    if (handle.atmosphereUniforms) {
+      const base = 0.2 + planetOpacity * 0.9
+      handle.atmosphereUniforms.intensity.value =
+        base + meteor * 0.6 + shock * 0.9 + city * 0.4
+    }
+
+    if (handle.planetMaterial) {
+      handle.planetMaterial.uniforms.uCityLightColor.value.setRGB(
+        0.85 + city * 0.15,
+        0.89 + city * 0.1,
+        1.0,
+      )
     }
   })
 
@@ -225,59 +359,34 @@ const Timeline = ({ planetRef }) => {
 
 const SceneContent = () => {
   const planetRef = useRef()
+  const eventsRef = useRef({ debris: 0, meteor: 0, shock: 0, city: 0 })
 
   return (
     <>
       <SceneFog />
-      
-
       <CinematicStars />
-      
       <Planet ref={planetRef} position={[3.0, -0.1, -6]} radius={3.8} />
       <FloatingDust />
-
-      <Timeline planetRef={planetRef} />
+      <DebrisField intensityRef={eventsRef} />
+      <MeteorStreak intensityRef={eventsRef} />
+      <ShockwaveRing intensityRef={eventsRef} />
+      <Timeline planetRef={planetRef} eventsRef={eventsRef} />
     </>
   )
 }
 
 const SpaceScene = ({ onEnterMission }) => {
   const [showHud, setShowHud] = useState(false)
-  const [hudKey, setHudKey] = useState(0)
 
   useEffect(() => {
-    let hudTimeout
-
-    const scheduleHud = () => {
-      setShowHud(false)
-      hudTimeout = setTimeout(() => {
-        setShowHud(true)
-      }, HUD_DELAY_MS)
-    }
-
-    scheduleHud()
-
-    const loopInterval = setInterval(() => {
-      setHudKey((prev) => prev + 1)
-      scheduleHud()
-    }, LOOP_DURATION * 1000)
-
-    return () => {
-      clearTimeout(hudTimeout)
-      clearInterval(loopInterval)
-    }
+    const hudTimeout = setTimeout(() => setShowHud(true), HUD_DELAY_MS)
+    return () => clearTimeout(hudTimeout)
   }, [])
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-[#020305]">
       <style>
         {`
-          @keyframes loop-fade {
-            0%   { opacity: 1; }
-            5%   { opacity: 0; }
-            95%  { opacity: 0; }
-            100% { opacity: 1; }
-          }
           @keyframes bloom-pulse {
             0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
             50%      { opacity: 0.8;  transform: translate(-50%, -50%) scale(1.08); }
@@ -303,8 +412,6 @@ const SpaceScene = ({ onEnterMission }) => {
         <SceneContent />
       </Canvas>
 
-      
-
       <div
         className="pointer-events-none absolute -left-20 -top-20 h-[500px] w-[500px] rounded-full mix-blend-screen"
         style={{
@@ -324,16 +431,11 @@ const SpaceScene = ({ onEnterMission }) => {
       {showHud && (
         <div
           className="absolute inset-0 z-[5]"
-          style={{ animation: 'hud-fade-in 1.2s ease-out forwards' }}
+          style={{ animation: 'hud-fade-in 1.6s ease-out forwards' }}
         >
-          <PlanetScanner key={hudKey} onEnterMission={onEnterMission} />
+          <PlanetScanner onEnterMission={onEnterMission} />
         </div>
       )}
-
-      <div
-        className="pointer-events-none absolute inset-0 z-10 bg-black"
-        style={{ animation: 'loop-fade 40s linear infinite' }}
-      />
     </div>
   )
 }
