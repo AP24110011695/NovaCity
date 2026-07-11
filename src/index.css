@@ -1,14 +1,20 @@
 @import "tailwindcss";
 
+/* ── Nova City Design Tokens ──────────────────────────────────────── */
 :root {
   --nova-bg: #080a10;
   --nova-surface: rgba(8, 10, 16, 0.55);
   --nova-accent: #4f7cff;
+  --nova-accent-light: #6b93ff;
   --nova-accent-soft: rgba(79, 124, 255, 0.12);
-  --nova-border: rgba(255, 255, 255, 0.1);
+  --nova-accent-glow: rgba(79, 124, 255, 0.06);
+  --nova-border: rgba(255, 255, 255, 0.08);
+  --nova-border-accent: rgba(79, 124, 255, 0.3);
   --nova-ease: cubic-bezier(0.22, 0.68, 0.35, 1);
+  --nova-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Base reset ───────────────────────────────────────────────────── */
 html,
 body,
 #root {
@@ -22,8 +28,11 @@ body {
   color: white;
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Portfolio mode ───────────────────────────────────────────────── */
 html.portfolio-mode,
 body.portfolio-mode,
 #root.portfolio-mode {
@@ -33,11 +42,77 @@ body.portfolio-mode,
   overflow-y: auto;
 }
 
+/* ── Smooth scroll (native fallback for Lenis) ───────────────────── */
 html {
   scroll-behavior: smooth;
 }
 
+/* ── Section rhythm ───────────────────────────────────────────────── */
+/* Subtle top-gradient separator between sections so they feel like
+   distinct city districts while staying visually connected. */
+#about,
+#skills,
+#projects,
+#experience,
+#contact {
+  position: relative;
+}
+
+#about::before,
+#skills::before,
+#projects::before,
+#experience::before,
+#contact::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(79, 124, 255, 0.12) 30%,
+      rgba(79, 124, 255, 0.12) 70%,
+      transparent 100%);
+  pointer-events: none;
+}
+
+/* ── Selection ────────────────────────────────────────────────────── */
 ::selection {
   background: rgba(79, 124, 255, 0.35);
   color: white;
+}
+
+/* ── Scrollbar (WebKit) ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--nova-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(79, 124, 255, 0.25);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 124, 255, 0.45);
+}
+
+/* ── Focus ring ───────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(79, 124, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* ── Reduced-motion ───────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

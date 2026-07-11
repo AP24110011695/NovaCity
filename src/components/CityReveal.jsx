@@ -1,303 +1,406 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-
+import { useMemo, useRef, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-
 import * as THREE from 'three'
+import LivingCity from './city/LivingCity'
 
-import BuildingField from './BuildingField'
-
-import SearchLights from './SearchLights'
-
-import GroundFog from './GroundFog'
-
-import AtmosphericParticles from './AtmosphericParticles'
-
-import CameraDirector from './CameraDirector'
-
-
-
-const ARRIVAL_KEYFRAMES = [
-
-  { time: 0, pos: [0, 4, 14], lookAt: [0, 3, -20], fov: 55, ease: 'easeInOutCubic' },
-
-  { time: 3.5, pos: [6, 5.5, -6], lookAt: [0, 5, -30], fov: 50, ease: 'easeOutCubic' },
-
-  { time: 7, pos: [2, 6, -28], lookAt: [0, 8, -45], fov: 46, ease: 'easeOutExpo' },
-
-  { time: 11, pos: [0, 7, -38], lookAt: [0, 10, -50], fov: 42, ease: 'easeOutExpo' },
-
-]
-
-
-
-const SETTLED_POS = new THREE.Vector3(0, 7, -38)
-
-const SETTLED_LOOK = new THREE.Vector3(0, 10, -50)
-
-
-
-const SceneFog = ({ dimmed }) => {
-
-  const { scene } = useThree()
-
-  scene.fog = new THREE.FogExp2('#080a10', dimmed ? 0.028 : 0.02)
-
-  return null
-
+// ─── Deterministic seed-based RNG (no Math.random in render) ─────────────────
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed)
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
+    return ((t ^ t >>> 14) >>> 0) / 4294967296
+  }
 }
 
+// ─── Procedural city layout — fully deterministic, never jumps on re-render ──
+function generateCityLayout(seed = 42) {
+  const rng = mulberry32(seed)
+  const buildings = []
 
+  // ── District 1: Downtown core — very tall, dense ─────────────────────────
+  for (let i = 0; i < 18; i++) {
+    const angle  = (i / 18) * Math.PI * 2 + rng() * 0.35
+    const radius = 8 + rng() * 14
+    buildings.push({
+      x: Math.cos(angle) * radius + (rng() - 0.5) * 6,
+      y: 0,
+      z: -18 + Math.sin(angle) * radius * 0.8 + (rng() - 0.5) * 4,
+      w: 3 + rng() * 5,
+      h: 28 + rng() * 52,
+      d: 3 + rng() * 5,
+    })
+  }
 
-const SettledCamera = () => {
+  // ── District 2: Mid-ring — varied heights ─────────────────────────────────
+  for (let i = 0; i < 28; i++) {
+    const col = i % 7
+    const row = Math.floor(i / 7)
+    const jx  = (rng() - 0.5) * 4
+    const jz  = (rng() - 0.5) * 4
+    buildings.push({
+      x: (col - 3) * 10 + jx,
+      y: 0,
+      z: -34 - row * 11 + jz,
+      w: 2.5 + rng() * 4,
+      h: 10 + rng() * 30,
+      d: 2.5 + rng() * 4,
+    })
+  }
 
-  useFrame(({ clock, camera }) => {
+  // ── District 3: Outer sprawl — low, wide ─────────────────────────────────
+  for (let i = 0; i < 24; i++) {
+    const angle  = (i / 24) * Math.PI * 2
+    const radius = 36 + rng() * 22
+    buildings.push({
+      x: Math.cos(angle) * radius + (rng() - 0.5) * 8,
+      y: 0,
+      z: -30 + Math.sin(angle) * radius * 0.65 + (rng() - 0.5) * 8,
+      w: 4 + rng() * 8,
+      h: 4 + rng() * 14,
+      d: 4 + rng() * 8,
+    })
+  }
 
-    const t = clock.getElapsedTime()
+  // ── District 4: Background silhouette towers ──────────────────────────────
+  for (let i = 0; i < 14; i++) {
+    buildings.push({
+      x: (rng() - 0.5) * 120,
+      y: 0,
+      z: -65 - rng() * 35,
+      w: 2 + rng() * 3,
+      h: 22 + rng() * 40,
+      d: 2 + rng() * 3,
+    })
+  }
 
-    const handheldX = Math.sin(t * 1.7) * 0.03 + Math.sin(t * 4.1 + 1.0) * 0.012
-
-    const handheldY = Math.cos(t * 1.3) * 0.025 + Math.sin(t * 3.3 + 0.6) * 0.01
-
-
-
-    camera.position.set(
-
-      SETTLED_POS.x + handheldX,
-
-      SETTLED_POS.y + handheldY,
-
-      SETTLED_POS.z,
-
-    )
-
-    camera.lookAt(SETTLED_LOOK.x, SETTLED_LOOK.y, SETTLED_LOOK.z)
-
-    camera.rotation.z = Math.sin(t * 0.4) * 0.004
-
-
-
-    if (Math.abs(camera.fov - 42) > 0.01) {
-
-      camera.fov = 42
-
-      camera.updateProjectionMatrix()
-
-    }
-
-  })
-
-
-
-  return null
-
+  return buildings
 }
 
-
-
-const VolumetricSkyGlow = ({ dimmed }) => {
-
-  const ref = useRef()
-
-
-
-  useFrame(({ clock }) => {
-
-    if (!ref.current) return
-
-    const t = clock.getElapsedTime()
-
-    const base = dimmed ? 0.06 : 0.1
-
-    ref.current.material.opacity = base + Math.sin(t * 0.1) * 0.02
-
-  })
-
-
-
-  return (
-
-    <mesh ref={ref} position={[0, 8, -40]} scale={[70, 30, 1]}>
-
-      <planeGeometry args={[1, 1]} />
-
-      <meshBasicMaterial
-
-        color="#4F7CFF"
-
-        transparent
-
-        opacity={0.1}
-
-        blending={THREE.AdditiveBlending}
-
-        depthWrite={false}
-
-      />
-
-    </mesh>
-
-  )
-
-}
-
-
-
-const BuildingRevealDriver = ({ onProgress }) => {
-
-  useFrame(({ clock }) => {
-
-    const t = clock.getElapsedTime()
-
-    const progress = THREE.MathUtils.smoothstep(t, 1.2, 4.5)
-
-    onProgress(progress)
-
-  })
-
-  return null
-
-}
-
-
-
-const SceneContent = ({ phase, onSettled, dimmed, revealProgress }) => {
-
-  const handleArrivalComplete = useCallback(() => {
-
-    onSettled?.()
-
-  }, [onSettled])
-
-
-
-  const keyframes = useMemo(() => ARRIVAL_KEYFRAMES, [])
-
-
-
-  return (
-
-    <>
-
-      <SceneFog dimmed={dimmed} />
-
-      {phase === 'settled' ? (
-
-        <SettledCamera />
-
-      ) : (
-
-        <>
-
-          <CameraDirector
-
-            keyframes={keyframes}
-
-            playing
-
-            loop={false}
-
-            onComplete={handleArrivalComplete}
-
-          />
-
-          <BuildingRevealDriver onProgress={(p) => { revealProgress.current = p }} />
-
-        </>
-
-      )}
-
-
-
-      <ambientLight intensity={dimmed ? 0.04 : 0.06} color="#4F7CFF" />
-
-      <hemisphereLight args={['#1a2440', '#020204', dimmed ? 0.18 : 0.25]} />
-
-
-
-      <VolumetricSkyGlow dimmed={dimmed} />
-
-      <BuildingField revealProgressRef={revealProgress} />
-
-      <SearchLights />
-
-      <GroundFog />
-
-      <AtmosphericParticles />
-
-    </>
-
-  )
-
-}
-
-
-
-const CityReveal = ({ phase = 'flythrough', onSettled, dimmed = false }) => {
-  const revealProgress = useRef(0)
+const CITY_DATA = generateCityLayout(137)  // fixed seed → never jumps
+
+// ─── Building meshes — instanced, colours baked from building data ───────────
+const BuildingMeshes = ({ buildings }) => {
+  const meshRef = useRef()
 
   useEffect(() => {
-    if (phase === 'settled') revealProgress.current = 1
-  }, [phase])
+    if (!meshRef.current || !buildings.length) return
+    const dummy = new THREE.Object3D()
 
+    buildings.forEach((b, i) => {
+      dummy.position.set(b.x, b.y + b.h * 0.5, b.z)
+      dummy.scale.set(b.w, b.h, b.d)
+      dummy.updateMatrix()
+      meshRef.current.setMatrixAt(i, dummy.matrix)
 
+      // Colour: darker = more distant, slight blue-grey tint
+      const depth = Math.max(0, Math.min(1, (-b.z - 10) / 80))
+      const base  = 0.025 + depth * 0.01
+      meshRef.current.setColorAt(i, new THREE.Color(
+        base * 0.85,
+        base * 0.92,
+        base * 1.20,
+      ))
+    })
+
+    meshRef.current.instanceMatrix.needsUpdate = true
+    if (meshRef.current.instanceColor) {
+      meshRef.current.instanceColor.needsUpdate = true
+    }
+  }, [buildings])
 
   return (
-
-    <div className="relative h-full min-h-screen w-full overflow-hidden bg-[#080a10]">
-
-      <Canvas
-
-        camera={{ position: [0, 4, 14], fov: 55 }}
-
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-
-        dpr={dimmed ? [1, 1.25] : [1, 1.5]}
-
-        className="absolute inset-0"
-
-      >
-
-        <color attach="background" args={['#080a10']} />
-
-        <SceneContent
-
-          phase={phase}
-
-          onSettled={onSettled}
-
-          dimmed={dimmed}
-
-          revealProgress={revealProgress}
-
-        />
-
-      </Canvas>
-
-
-
-      <div
-
-        className="pointer-events-none absolute inset-0"
-
-        style={{
-
-          background: dimmed
-
-            ? 'radial-gradient(ellipse at center, transparent 35%, rgba(8,10,16,0.55) 100%)'
-
-            : 'radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.65) 100%)',
-
-        }}
-
-      />
-
-    </div>
-
+    <instancedMesh ref={meshRef} args={[null, null, buildings.length]} castShadow receiveShadow>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial roughness={0.92} metalness={0.08} envMapIntensity={0.3} />
+    </instancedMesh>
   )
-
 }
 
+// ─── Rooftop detail: antenna spires ──────────────────────────────────────────
+const RooftopSpires = ({ buildings }) => {
+  const rng   = useMemo(() => mulberry32(99), [])
+  const spires = useMemo(() => {
+    return buildings
+      .filter(b => b.h > 25 && rng() > 0.45)
+      .slice(0, 24)
+      .map(b => ({
+        x: b.x + (rng() - 0.5) * b.w * 0.4,
+        y: b.y + b.h,
+        z: b.z + (rng() - 0.5) * b.d * 0.4,
+        h: 2 + rng() * 6,
+      }))
+  }, [buildings, rng])
 
+  const meshRef = useRef()
+
+  useEffect(() => {
+    if (!meshRef.current || !spires.length) return
+    const dummy = new THREE.Object3D()
+    spires.forEach((s, i) => {
+      dummy.position.set(s.x, s.y + s.h * 0.5, s.z)
+      dummy.scale.set(0.18, s.h, 0.18)
+      dummy.updateMatrix()
+      meshRef.current.setMatrixAt(i, dummy.matrix)
+    })
+    meshRef.current.instanceMatrix.needsUpdate = true
+  }, [spires])
+
+  return (
+    <instancedMesh ref={meshRef} args={[null, null, Math.max(1, spires.length)]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#1a1e2a" roughness={0.7} metalness={0.6} />
+    </instancedMesh>
+  )
+}
+
+// ─── Ground plane with fog falloff ───────────────────────────────────────────
+const Ground = () => {
+  const matRef = useRef()
+
+  useFrame(({ clock }) => {
+    if (matRef.current) {
+      matRef.current.uniforms.uTime.value = clock.getElapsedTime()
+    }
+  })
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, -30]} receiveShadow>
+      <planeGeometry args={[280, 200, 1, 1]} />
+      <shaderMaterial
+        ref={matRef}
+        vertexShader={/* glsl */`
+          varying vec2 vUv; varying vec3 vWorldPos;
+          void main(){vUv=uv;vWorldPos=(modelMatrix*vec4(position,1.0)).xyz;
+            gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}
+        `}
+        fragmentShader={/* glsl */`
+          uniform float uTime; varying vec2 vUv; varying vec3 vWorldPos;
+          void main(){
+            float dist=length(vWorldPos.xz);
+            float fade=1.0-smoothstep(20.0,120.0,dist);
+            float grid=max(
+              step(0.97,fract(vWorldPos.x*0.5)),
+              step(0.97,fract(vWorldPos.z*0.5))
+            )*0.08;
+            vec3 col=vec3(0.04,0.06,0.10)+grid*vec3(0.2,0.35,0.8)*fade;
+            gl_FragColor=vec4(col,fade*0.65);
+          }
+        `}
+        uniforms={{ uTime: { value: 0 } }}
+        transparent depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
+// ─── Volumetric sky glow — large planes above the skyline ────────────────────
+const SkyGlow = () => {
+  const refs = [useRef(), useRef(), useRef()]
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime()
+    if (refs[0].current) refs[0].current.material.opacity = 0.09 + Math.sin(t * 0.07) * 0.025
+    if (refs[1].current) refs[1].current.material.opacity = 0.06 + Math.sin(t * 0.11 + 1.4) * 0.02
+    if (refs[2].current) refs[2].current.material.opacity = 0.04 + Math.sin(t * 0.05 + 2.8) * 0.015
+  })
+
+  return (
+    <group>
+      {/* Primary blue dome above skyline */}
+      <mesh ref={refs[0]} position={[0, 18, -35]} scale={[90, 40, 1]}>
+        <planeGeometry />
+        <meshBasicMaterial color="#2040a0" transparent opacity={0.09}
+          blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+
+      {/* Warm accent — slight orange from street level */}
+      <mesh ref={refs[1]} position={[8, 4, -22]} scale={[55, 14, 1]}>
+        <planeGeometry />
+        <meshBasicMaterial color="#603020" transparent opacity={0.06}
+          blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+
+      {/* Distant deep blue fill */}
+      <mesh ref={refs[2]} position={[0, 32, -65]} scale={[120, 55, 1]}>
+        <planeGeometry />
+        <meshBasicMaterial color="#1030c0" transparent opacity={0.04}
+          blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+    </group>
+  )
+}
+
+// ─── Scene-level fog ─────────────────────────────────────────────────────────
+const SceneFog = () => {
+  const { scene } = useThree()
+  useEffect(() => {
+    scene.fog = new THREE.FogExp2('#060810', 0.016)
+    return () => { scene.fog = null }
+  }, [scene])
+  return null
+}
+
+// ─── Cinematic fly-through camera ─────────────────────────────────────────────
+const FlyThroughCamera = () => {
+  const curve = useMemo(() => new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0,    5.5,  16),
+    new THREE.Vector3(9,    7.0,  -2),
+    new THREE.Vector3(5,    8.5, -20),
+    new THREE.Vector3(-8,   6.5, -40),
+    new THREE.Vector3(-3,   7.5, -60),
+    new THREE.Vector3(7,    6.0, -44),
+    new THREE.Vector3(11,   5.5, -18),
+    new THREE.Vector3(0,    5.5,  16),
+  ], true, 'catmullrom', 0.5), [])
+
+  const CYCLE = 80
+
+  useFrame(({ clock, camera }) => {
+    const t   = clock.getElapsedTime()
+    const p   = (t % CYCLE) / CYCLE
+    const pAhead = (p + 0.018) % 1
+
+    const pos     = curve.getPointAt(p)
+    const lookAt  = curve.getPointAt(pAhead)
+
+    // Handheld micro-jitter
+    const hx = Math.sin(t * 1.9) * 0.045 + Math.sin(t * 4.3 + 1.0) * 0.018
+    const hy = Math.cos(t * 1.5) * 0.036 + Math.sin(t * 3.7 + 0.6) * 0.013
+
+    camera.position.set(pos.x + hx, pos.y + hy, pos.z)
+    camera.lookAt(lookAt.x, lookAt.y - 0.8, lookAt.z)
+    camera.rotation.z = Math.sin(t * 0.35) * 0.005
+  })
+
+  return null
+}
+
+// ─── Flying vehicles — light streaks across mid-city ─────────────────────────
+const FlyingVehicles = () => {
+  const COUNT   = 14
+  const meshRef = useRef()
+
+  const vehicles = useMemo(() => {
+    const rng = mulberry32(55)
+    return Array.from({ length: COUNT }, () => ({
+      y:      3 + rng() * 18,
+      z:      -8 - rng() * 55,
+      speed:  5 + rng() * 9,
+      startX: -50 - rng() * 20,
+      color:  rng() > 0.6 ? [1.0, 0.9, 0.6] : [0.6, 0.8, 1.0],
+    }))
+  }, [])
+
+  useFrame((_, delta) => {
+    if (!meshRef.current) return
+    const dummy = new THREE.Object3D()
+
+    vehicles.forEach((v, i) => {
+      v._x = (v._x ?? v.startX)
+      v._x += v.speed * delta
+      if (v._x > 55) v._x = v.startX
+
+      dummy.position.set(v._x, v.y, v.z)
+      dummy.scale.set(0.6 + Math.random() * 0.15, 0.04, 0.04)
+      dummy.updateMatrix()
+      meshRef.current.setMatrixAt(i, dummy.matrix)
+    })
+
+    meshRef.current.instanceMatrix.needsUpdate = true
+  })
+
+  return (
+    <instancedMesh ref={meshRef} args={[null, null, COUNT]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshBasicMaterial color="#aabbff" transparent opacity={0.5}
+        blending={THREE.AdditiveBlending} depthWrite={false} />
+    </instancedMesh>
+  )
+}
+
+// ─── Scene root ───────────────────────────────────────────────────────────────
+const SceneContent = () => (
+  <>
+    <SceneFog />
+    <FlyThroughCamera />
+
+    {/* Directional key light from upper right — cold blue */}
+    <directionalLight
+      position={[30, 60, 20]}
+      color="#c8d8ff"
+      intensity={0.55}
+    />
+
+    {/* Warm fill from ground — city bounce light */}
+    <pointLight position={[0, -2, -20]} color="#304080" intensity={8} distance={80} decay={2} />
+
+    <SkyGlow />
+    <Ground />
+
+    {/* Static building geometry */}
+    <BuildingMeshes buildings={CITY_DATA} />
+    <RooftopSpires  buildings={CITY_DATA} />
+
+    {/* Animated city life — LivingCity from the city/ system */}
+    <LivingCity
+      buildingData={CITY_DATA}
+      fogGroundY={0}
+      fogRadius={180}
+      fogDensity={0.22}
+      particleAlpha={0.18}
+    />
+
+    <FlyingVehicles />
+  </>
+)
+
+// ─── CityReveal ───────────────────────────────────────────────────────────────
+const CityReveal = () => {
+  return (
+    <div className="relative h-screen w-full overflow-hidden bg-[#060810]">
+      <style>{`
+        @keyframes city-unfade { 0%{opacity:1} 100%{opacity:0} }
+        @keyframes city-ui-in  { 0%{opacity:0;transform:translateY(16px)} 100%{opacity:1;transform:translateY(0)} }
+      `}</style>
+
+      <Canvas
+        camera={{ position: [0, 5.5, 16], fov: 58 }}
+        gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
+        dpr={[1, 1.5]}
+        className="absolute inset-0"
+      >
+        <SceneContent />
+      </Canvas>
+
+      {/* Subtle vignette */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, rgba(0,0,4,0.72) 100%)',
+        }}
+      />
+
+      {/* City name reveal — fades in after the white-out settles */}
+      <div
+        className="pointer-events-none absolute bottom-12 left-1/2 -translate-x-1/2 text-center"
+        style={{ animation: 'city-ui-in 2.2s 1.4s ease-out both' }}
+      >
+        <p className="text-[9px] font-medium tracking-[0.55em] text-white/30 mb-2">
+          COLONY SIGMA-7 / OUTER RIM
+        </p>
+        <p className="text-sm font-light tracking-[0.45em] text-white/55">
+          NOVA CITY
+        </p>
+      </div>
+
+      {/* Entry white-out fade that matches AtmosphereTransition's final flash */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-white"
+        style={{ animation: 'city-unfade 1.4s ease-out forwards' }}
+      />
+    </div>
+  )
+}
 
 export default CityReveal
-

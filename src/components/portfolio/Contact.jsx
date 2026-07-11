@@ -1,13 +1,61 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useRef, useState } from 'react'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { FaGithub, FaLinkedin } from 'react-icons/fa'
 import { HiOutlineMail } from 'react-icons/hi'
 import { profile } from '../../data/profile'
 import SectionHeading from './SectionHeading'
 
+const NOVA_EASE = [0.22, 0.68, 0.35, 1]
+
+const CHANNELS = [
+  {
+    href: (p) => `mailto:${p.email}`,
+    Icon: HiOutlineMail,
+    label: 'Direct Signal',
+    value: (p) => p.email,
+    size: 18,
+  },
+  {
+    href: (p) => p.github,
+    Icon: FaGithub,
+    label: 'Source Hub',
+    value: () => 'GitHub',
+    size: 17,
+    external: true,
+  },
+  {
+    href: (p) => p.linkedin,
+    Icon: FaLinkedin,
+    label: 'Network Node',
+    value: () => 'LinkedIn',
+    size: 17,
+    external: true,
+  },
+]
+
+/* Reusable styled input */
+function TerminalInput({ label, children }) {
+  return (
+    <label className="block">
+      <span className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.3em] text-gray-500">
+        <span className="h-px w-4 bg-[#4F7CFF]/40" />
+        {label}
+      </span>
+      {children}
+    </label>
+  )
+}
+
 export default function Contact() {
   const [form, setForm] = useState({ name: '', email: '', message: '' })
   const [submitted, setSubmitted] = useState(false)
+  const sectionRef = useRef(null)
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start end', 'end start'],
+  })
+  const orbY = useTransform(scrollYProgress, [0, 1], ['10%', '-15%'])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -19,118 +67,159 @@ export default function Contact() {
     setSubmitted(true)
   }
 
+  const sharedInputClass =
+    'w-full rounded-xl border border-white/[0.08] bg-[rgba(8,10,16,0.6)] px-4 py-3 text-sm text-white placeholder-gray-600 outline-none transition-colors duration-200 focus:border-[#4F7CFF]/60 focus:bg-[rgba(8,10,16,0.8)]'
+
   return (
-    <section id="contact" className="px-6 py-24 text-white">
-      <div className="mx-auto max-w-4xl">
-        <SectionHeading
-          label="Communication Terminal"
-          title="Contact"
-          align="center"
+    <section
+      id="contact"
+      ref={sectionRef}
+      className="relative overflow-hidden px-6 py-28 text-white"
+    >
+      {/* ── Atmospheric background ── */}
+      <motion.div
+        style={{ y: orbY }}
+        className="pointer-events-none absolute inset-0 -z-10"
+        aria-hidden
+      >
+        {/* Hexagonal pulse grid */}
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(79,124,255,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(79,124,255,0.7) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+          }}
         />
+        {/* Central terminal glow */}
+        <div className="absolute left-1/2 top-1/2 h-[700px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#4F7CFF]/[0.06] blur-[120px]" />
+      </motion.div>
+
+      <div className="mx-auto max-w-4xl">
+        <SectionHeading label="Communication Terminal" title="Contact" align="center" />
 
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="mx-auto mt-6 max-w-2xl text-center text-gray-300"
+          transition={{ duration: 0.6, delay: 0.12, ease: NOVA_EASE }}
+          className="mx-auto mt-5 max-w-xl text-center text-[15px] leading-7 text-gray-400"
         >
           Establish a connection with Nova City. Whether it&apos;s collaboration,
           opportunities, or a conversation about technology — the terminal is open.
         </motion.p>
 
+        {/* Channel links */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.7, delay: 0.2 }}
-          className="mt-10 flex flex-wrap justify-center gap-4"
+          transition={{ duration: 0.6, delay: 0.22, ease: NOVA_EASE }}
+          className="mt-10 flex flex-wrap justify-center gap-3"
         >
-          <a
-            href={`mailto:${profile.email}`}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm transition hover:border-[#4F7CFF]/50 hover:text-[#6B93FF]"
-          >
-            <HiOutlineMail size={18} />
-            {profile.email}
-          </a>
-          <a
-            href={profile.github}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm transition hover:border-[#4F7CFF]/50 hover:text-[#6B93FF]"
-          >
-            <FaGithub size={18} />
-            GitHub
-          </a>
-          <a
-            href={profile.linkedin}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 text-sm transition hover:border-[#4F7CFF]/50 hover:text-[#6B93FF]"
-          >
-            <FaLinkedin size={18} />
-            LinkedIn
-          </a>
+          {CHANNELS.map(({ href, Icon, label, value, size, external }) => (
+            <a
+              key={label}
+              href={href(profile)}
+              {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+              className="group inline-flex flex-col items-center gap-1.5 rounded-xl border border-white/[0.08] bg-[rgba(8,10,16,0.4)] px-5 py-3.5 transition-colors duration-200 hover:border-[#4F7CFF]/40 hover:bg-[rgba(79,124,255,0.06)]"
+            >
+              <Icon size={size} className="text-gray-400 transition-colors group-hover:text-[#6B93FF]" />
+              <span className="text-[10px] uppercase tracking-[0.3em] text-gray-600 transition-colors group-hover:text-[#6B93FF]">
+                {label}
+              </span>
+              <span className="text-[12px] text-gray-300">{value(profile)}</span>
+            </a>
+          ))}
         </motion.div>
 
-        <motion.form
-          initial={{ opacity: 0, y: 24 }}
+        {/* Form panel */}
+        <motion.div
+          initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.7, delay: 0.3 }}
-          onSubmit={handleSubmit}
-          className="mt-12 space-y-5 rounded-xl border border-white/10 bg-[rgba(8,10,16,0.25)] p-6 backdrop-blur-sm md:p-8"
+          transition={{ duration: 0.75, delay: 0.32, ease: NOVA_EASE }}
+          className="relative mt-12 overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgba(8,10,16,0.5)] backdrop-blur-md"
         >
-          <div className="grid gap-5 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 block text-sm text-gray-400">Name</span>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full rounded-lg border border-white/10 bg-[rgba(8,10,16,0.6)] px-4 py-3 outline-none transition focus:border-[#4F7CFF]"
-                placeholder="Your name"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm text-gray-400">Email</span>
-              <input
-                type="email"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full rounded-lg border border-white/10 bg-[rgba(8,10,16,0.6)] px-4 py-3 outline-none transition focus:border-[#4F7CFF]"
-                placeholder="your@email.com"
-              />
-            </label>
+          {/* Panel header bar */}
+          <div className="flex items-center gap-3 border-b border-white/[0.06] px-6 py-4">
+            <div className="flex gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+              <span className="h-2.5 w-2.5 rounded-full bg-white/10" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#4F7CFF]/50" />
+            </div>
+            <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-gray-600">
+              /terminal/transmit
+            </p>
           </div>
 
-          <label className="block">
-            <span className="mb-2 block text-sm text-gray-400">Message</span>
-            <textarea
-              required
-              rows={5}
-              value={form.message}
-              onChange={(e) => setForm({ ...form, message: e.target.value })}
-              className="w-full resize-none rounded-lg border border-white/10 bg-[rgba(8,10,16,0.6)] px-4 py-3 outline-none transition focus:border-[#4F7CFF]"
-              placeholder="Your message..."
-            />
-          </label>
+          {/* Top accent */}
+          <div
+            className="absolute inset-x-0 top-0 h-px"
+            style={{
+              background:
+                'linear-gradient(90deg, transparent, rgba(79,124,255,0.6), transparent)',
+            }}
+          />
 
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-[#4F7CFF] py-3 font-semibold transition hover:bg-[#6B93FF] md:w-auto md:px-10"
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5 p-6 md:p-8"
           >
-            Send Transmission
-          </button>
+            <div className="grid gap-5 md:grid-cols-2">
+              <TerminalInput label="Name">
+                <input
+                  type="text"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className={sharedInputClass}
+                  placeholder="Your name"
+                />
+              </TerminalInput>
+              <TerminalInput label="Email">
+                <input
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className={sharedInputClass}
+                  placeholder="your@email.com"
+                />
+              </TerminalInput>
+            </div>
 
-          {submitted && (
-            <p className="text-center text-sm text-[#6B93FF]">
-              Your email client should open shortly.
-            </p>
-          )}
-        </motion.form>
+            <TerminalInput label="Message">
+              <textarea
+                required
+                rows={5}
+                value={form.message}
+                onChange={(e) => setForm({ ...form, message: e.target.value })}
+                className={`${sharedInputClass} resize-none`}
+                placeholder="Your transmission..."
+              />
+            </TerminalInput>
+
+            <div className="flex items-center justify-between gap-4">
+              <button
+                type="submit"
+                className="rounded-xl bg-[#4F7CFF]/90 px-8 py-3 text-sm font-semibold backdrop-blur-sm transition hover:bg-[#6B93FF] active:scale-[0.98]"
+              >
+                Send Transmission
+              </button>
+
+              {submitted && (
+                <motion.p
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-[13px] text-[#6B93FF]"
+                >
+                  ✓ Your email client should open shortly.
+                </motion.p>
+              )}
+            </div>
+          </form>
+        </motion.div>
       </div>
     </section>
   )

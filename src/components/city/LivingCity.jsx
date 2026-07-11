@@ -1,11 +1,11 @@
 import { memo, useMemo } from 'react'
 
-import DroneTraffic from './DroneTraffic'
+import { DroneTraffic } from './DroneTraffic'
 import { HolographicBillboards } from './HolographicBillboards'
 import { BuildingWindows } from './BuildingWindows'
 import { AtmosphericFog } from './AtmosphericFog'
 import { FloatingParticles } from './FloatingParticles'
-import Searchlights from './Searchlights'
+import Searchlights from './Searchlight'
 import EnvironmentBreathing from './EnvironmentBreathing'
 
 const LivingCity = memo(function LivingCity({
