@@ -5,6 +5,8 @@ import gsap from 'gsap';
 import { useDistrictSelection } from './SelectionManager';
 import { CityDistrict } from './CityDistrict';
 import { DistrictLabel } from './DistrictLabel';
+import { LandmarkBuilding } from './LandmarkBuilding';
+import { LANDMARKS } from '../../data/landmarks';
 
 export const DistrictInteraction = ({ district }) => {
   const { activeDistrictId, hoveredDistrictId, selectDistrict, setHovered } = useDistrictSelection();
@@ -12,6 +14,8 @@ export const DistrictInteraction = ({ district }) => {
   const groupRef = useRef();
   const outlineRef = useRef();
   
+  const landmark = LANDMARKS.find(l => l.districtId === district.id);
+
   const isHovered = hoveredDistrictId === district.id;
   const isSelected = activeDistrictId === district.id;
   const isActive = isHovered || isSelected;
@@ -90,6 +94,9 @@ export const DistrictInteraction = ({ district }) => {
         selected={isSelected} 
         onClick={() => selectDistrict(isSelected ? null : district.id)}
       />
+
+      {/* Landmark Building positioned at the center of the district */}
+      {landmark && <LandmarkBuilding landmark={landmark} />}
 
       {/* CityDistrict is positioned at 0,0 locally since we moved the group */}
       <CityDistrict 

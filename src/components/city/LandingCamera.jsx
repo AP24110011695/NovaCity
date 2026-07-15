@@ -3,11 +3,14 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import { useDistrictSelection } from './SelectionManager'
+import { useBuildingSelection } from './BuildingManager'
 import { DISTRICTS } from '../../data/districts'
+import { LANDMARKS } from '../../data/landmarks'
 
 export const LandingCamera = ({ onLanded }) => {
   const { camera, scene } = useThree()
   const { activeDistrictId } = useDistrictSelection()
+  const { activeBuildingId } = useBuildingSelection()
   
   // Track where the camera should be looking
   const lookTarget = useRef(new THREE.Vector3(0, 15, -20))
@@ -44,25 +47,35 @@ export const LandingCamera = ({ onLanded }) => {
   }, [camera, onLanded])
 
   useEffect(() => {
-    // If we select a district, animate towards it
-    if (activeDistrictId) {
-      const district = DISTRICTS.find(d => d.id === activeDistrictId)
-      if (!district) return
+    let targetPos = null;
+    let targetLookAt = null;
 
-      // Calculate a position slightly above and offset from the district
-      // to look towards the HeroBuilding (0, 0, -25)
-      const distCenter = new THREE.Vector3(district.center.x, 15, district.center.z)
-      const heroPos = new THREE.Vector3(0, 0, -25)
-      
-      // Direction from hero to district
-      const dir = new THREE.Vector3().subVectors(distCenter, heroPos).normalize()
-      
-      // Position camera outside the district, looking back towards hero
-      const targetPos = new THREE.Vector3().copy(distCenter).add(dir.multiplyScalar(40))
-      targetPos.y = 25 // elevate
+    if (activeBuildingId) {
+      // Prioritize building selection
+      const building = LANDMARKS.find(b => b.id === activeBuildingId);
+      const district = building ? DISTRICTS.find(d => d.id === building.districtId) : null;
+      if (district) {
+        // Position camera closely, low angle
+        targetPos = new THREE.Vector3(district.center.x + 18, 5, district.center.z + 18);
+        targetLookAt = new THREE.Vector3(district.center.x, 20, district.center.z);
+      }
+    } else if (activeDistrictId) {
+      // Fallback to district selection
+      const district = DISTRICTS.find(d => d.id === activeDistrictId);
+      if (district) {
+        const distCenter = new THREE.Vector3(district.center.x, 15, district.center.z);
+        const heroPos = new THREE.Vector3(0, 0, -25);
+        const dir = new THREE.Vector3().subVectors(distCenter, heroPos).normalize();
+        
+        targetPos = new THREE.Vector3().copy(distCenter).add(dir.multiplyScalar(40));
+        targetPos.y = 25;
+        targetLookAt = new THREE.Vector3(district.center.x, 10, district.center.z);
+      }
+    }
 
-      gsap.killTweensOf(camera.position)
-      gsap.killTweensOf(lookTarget.current)
+    if (targetPos && targetLookAt) {
+      gsap.killTweensOf(camera.position);
+      gsap.killTweensOf(lookTarget.current);
 
       gsap.to(camera.position, {
         x: targetPos.x,
@@ -70,23 +83,21 @@ export const LandingCamera = ({ onLanded }) => {
         z: targetPos.z,
         duration: 2.5,
         ease: "power3.inOut"
-      })
+      });
 
-      // The point we want to look at (center of district)
       gsap.to(lookTarget.current, {
-        x: district.center.x,
-        y: 10,
-        z: district.center.z,
+        x: targetLookAt.x,
+        y: targetLookAt.y,
+        z: targetLookAt.z,
         duration: 2.5,
         ease: "power3.inOut"
-      })
+      });
       
-      orbitAngle.current = 0
-
+      orbitAngle.current = 0;
     } else {
       // Return to base position
-      gsap.killTweensOf(camera.position)
-      gsap.killTweensOf(lookTarget.current)
+      gsap.killTweensOf(camera.position);
+      gsap.killTweensOf(lookTarget.current);
 
       gsap.to(camera.position, {
         x: basePosition.current.x,
@@ -94,7 +105,7 @@ export const LandingCamera = ({ onLanded }) => {
         z: basePosition.current.z,
         duration: 2.5,
         ease: "power3.inOut"
-      })
+      });
 
       gsap.to(lookTarget.current, {
         x: 0,
@@ -102,32 +113,35 @@ export const LandingCamera = ({ onLanded }) => {
         z: -20,
         duration: 2.5,
         ease: "power3.inOut"
-      })
+      });
     }
-  }, [activeDistrictId, camera])
+  }, [activeDistrictId, activeBuildingId, camera]);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime()
     
-    if (activeDistrictId) {
-      // Subtle orbit around the selected district
-      const district = DISTRICTS.find(d => d.id === activeDistrictId)
-      if (district) {
-        orbitAngle.current += 0.001
-        // We add a tiny orbit offset dynamically, 
-        // without overriding the GSAP animation too harshly
-        const orbitRadius = 1.0
-        const cx = Math.sin(orbitAngle.current) * orbitRadius
-        const cz = Math.cos(orbitAngle.current) * orbitRadius
+    if (activeBuildingId || activeDistrictId) {
+      // Determine center for orbit
+      let center = null;
+      if (activeBuildingId) {
+        const building = LANDMARKS.find(b => b.id === activeBuildingId);
+        if (building) center = DISTRICTS.find(d => d.id === building.districtId)?.center;
+      } else {
+        center = DISTRICTS.find(d => d.id === activeDistrictId)?.center;
+      }
+
+      if (center) {
+        orbitAngle.current += (activeBuildingId ? 0.0005 : 0.001); // slower orbit for building
+        const orbitRadius = activeBuildingId ? 0.5 : 1.0;
+        const cx = Math.sin(orbitAngle.current) * orbitRadius;
+        const cz = Math.cos(orbitAngle.current) * orbitRadius;
         
-        // Combine current look target with some breathing
-        const currentLook = lookTarget.current.clone()
-        currentLook.y += Math.sin(t * 1.5) * 0.1
-        camera.lookAt(currentLook)
+        const currentLook = lookTarget.current.clone();
+        currentLook.y += Math.sin(t * 1.5) * 0.1;
+        camera.lookAt(currentLook);
         
-        // Small position breathing on top of GSAP target
-        camera.position.x += cx * 0.01
-        camera.position.z += cz * 0.01
+        camera.position.x += cx * 0.01;
+        camera.position.z += cz * 0.01;
       }
     } else {
       // Subtle idle breathing

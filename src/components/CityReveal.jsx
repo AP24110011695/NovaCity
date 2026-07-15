@@ -7,6 +7,7 @@ import { LandingCamera } from './city/LandingCamera'
 import { GroundFog, VolumetricRays, DriftingDust } from './city/AtmosphericEffects'
 import { AircraftSilhouettes } from './city/AircraftSilhouettes'
 import { SelectionProvider } from './city/SelectionManager'
+import { BuildingProvider } from './city/BuildingManager'
 import gsap from 'gsap'
 
 // ─── Deterministic seed-based RNG (no Math.random in render) ─────────────────
@@ -162,8 +163,9 @@ const FlyingVehicles = () => {
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
 const SceneContent = ({ onLanded }) => (
-  <SelectionProvider>
-    <SceneFog />
+  <BuildingProvider>
+    <SelectionProvider>
+      <SceneFog />
     <LandingCamera onLanded={onLanded} />
 
     {/* Directional key light from upper right — cold blue */}
@@ -190,9 +192,10 @@ const SceneContent = ({ onLanded }) => (
 
     {/* Atmospheric Elements */}
     <GroundFog />
-    <VolumetricRays />
-    <DriftingDust />
-  </SelectionProvider>
+      <VolumetricRays />
+      <DriftingDust />
+    </SelectionProvider>
+  </BuildingProvider>
 )
 
 // ─── CityReveal ───────────────────────────────────────────────────────────────

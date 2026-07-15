@@ -20,17 +20,21 @@ export function generateDistrict(seed = 42, center = {x: 0, z: 0}, radius = 100,
     const z = center.z + Math.sin(angle) * r
     
     // Distance from the true city center (Hero Building is at 0, 0, -20)
-    const distToCenter = Math.sqrt(x*x + (z+20)*(z+20))
+    const distToCityCenter = Math.sqrt(x*x + (z+20)*(z+20))
+    // Distance from the local district center where the Landmark Building is located
+    const distToDistrictCenter = Math.sqrt((x - center.x)**2 + (z - center.z)**2)
+    
     // Buildings get shorter the further they are from center
-    const heightFactor = Math.max(0, (120 - distToCenter) / 120)
+    const heightFactor = Math.max(0, (120 - distToCityCenter) / 120)
     const h = 10 + rng() * 40 * heightFactor + rng() * 20
     
     // Width and depth
     const w = 3 + rng() * 5
     const d = 3 + rng() * 5
 
-    // Prevent intersection with hero building (radius ~10)
-    if (distToCenter < 12) continue
+    // Prevent intersection with hero building (radius ~12)
+    // Prevent intersection with local Landmark Building (radius ~15)
+    if (distToCityCenter < 12 || distToDistrictCenter < 15) continue
 
     const hasAntenna = rng() > 0.7 && h > 20
     const hasNeon = rng() > 0.8
