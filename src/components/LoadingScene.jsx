@@ -51,47 +51,59 @@ const LoadingScene = ({ onComplete }) => {
   const startTimeRef       = useRef(null)
   const frameRef           = useRef(null)
   const lastMilestoneRef   = useRef(-1)
+  const progressRef        = useRef(-1)
+  const statusRef          = useRef(-1)
 
   const stars = useMemo(() => generateStars(), [])
 
   useEffect(() => {
+    const timeoutIds = []
     const tick = (timestamp) => {
       if (startTimeRef.current === null) startTimeRef.current = timestamp
       const elapsed = timestamp - startTimeRef.current
       const ratio   = Math.min(elapsed / TOTAL_DURATION, 1)
       const eased   = 1 - Math.pow(1 - ratio, 2.5)
       const cur     = Math.round(eased * 100)
-      setProgress(cur)
+      if (cur !== progressRef.current) {
+        progressRef.current = cur
+        setProgress(cur)
+      }
 
       let newIndex = 0
       for (let i = STATUS_MESSAGES.length - 1; i >= 0; i--) {
         if (eased >= STATUS_MESSAGES[i].at) { newIndex = i; break }
       }
-      setActiveStatusIndex(newIndex)
+      if (newIndex !== statusRef.current) {
+        statusRef.current = newIndex
+        setActiveStatusIndex(newIndex)
+      }
 
       for (const milestone of GLOW_MILESTONES) {
         if (cur >= milestone && lastMilestoneRef.current < milestone) {
           lastMilestoneRef.current = milestone
           setGlowIntensity(1.0)
           setFlareActive(true)
-          setTimeout(() => { setGlowIntensity(0.3); setFlareActive(false) }, 500)
+          timeoutIds.push(window.setTimeout(() => { setGlowIntensity(0.3); setFlareActive(false) }, 500))
         }
       }
 
       if (ratio < 1) {
         frameRef.current = requestAnimationFrame(tick)
       } else {
-        setTimeout(() => onComplete?.(), COMPLETE_HOLD)
+        timeoutIds.push(window.setTimeout(() => onComplete?.(), COMPLETE_HOLD))
       }
     }
     frameRef.current = requestAnimationFrame(tick)
-    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current) }
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current)
+      timeoutIds.forEach((id) => window.clearTimeout(id))
+    }
   }, [onComplete])
 
   const dashOffset = CIRCUMFERENCE * (1 - progress / 100)
 
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#050608]">
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#050608]" role="status" aria-live="polite" aria-label={`Nova City loading: ${progress}%`}>
       <style>{`
         @keyframes loader-rotate         { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
         @keyframes loader-rotate-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg);    } }

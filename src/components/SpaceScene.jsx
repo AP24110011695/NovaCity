@@ -3,12 +3,9 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import Planet from './Planet'
-import PlanetScanner from './PlanetScanner'
-import PlanetInfoPanel from './PlanetInfoPanel'
 import { TransitionWebGL, TransitionHTML } from './transitions/TransitionManager'
 
-const LOOP_DURATION = 38
-const HUD_DELAY_MS  = 22000
+const LOOP_DURATION = 22
 
 const triangle = (riseStart, riseEnd, fallStart, fallEnd, x) => {
   const rise = THREE.MathUtils.smoothstep(x, riseStart, riseEnd)
@@ -453,7 +450,7 @@ const ShootingStars = () => {
 // ------------------------------------------------------------------
 // Timeline — Manages camera, transitions, and cinematic events
 // ------------------------------------------------------------------
-const Timeline = ({ planetRef, eventsRef, transitionRef }) => {
+const Timeline = ({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
   useFrame(({ clock, camera }) => {
     const elapsed = clock.getElapsedTime()
     const phase   = Math.min(elapsed, LOOP_DURATION)
@@ -461,7 +458,7 @@ const Timeline = ({ planetRef, eventsRef, transitionRef }) => {
     const handle = planetRef.current
     if (!handle) return
 
-    const approach     = THREE.MathUtils.smoothstep(phase, 5.5, 34)
+    const approach     = THREE.MathUtils.smoothstep(phase, 3.2, 19.5)
     const baseDistance = THREE.MathUtils.lerp(26, 4.6, approach)
 
     // Breathing: slow in-out
@@ -477,11 +474,12 @@ const Timeline = ({ planetRef, eventsRef, transitionRef }) => {
     const roll = Math.sin(elapsed * 0.07) * 0.012 + Math.sin(elapsed * 0.20 + 2.0) * 0.005 + Math.cos(elapsed * 0.11 + 0.9) * 0.003
 
     // Tension shake near impact
-    const tensionShake = triangle(29, 30, 36, 38, phase) * 0.045
+    const tensionShake = triangle(16.8, 17.5, 21, 22, phase) * 0.045
 
+    const ignitionShake = awakeningStage >= 5 ? 0.075 : 0
     const timelinePos = new THREE.Vector3(
-      -0.7 + Math.sin(elapsed * 0.05) * 0.40 + handX + Math.sin(elapsed * 8) * tensionShake,
-      -0.25 + Math.cos(elapsed * 0.044) * 0.22 + handY + Math.cos(elapsed * 7) * tensionShake * 0.6,
+      -0.7 + Math.sin(elapsed * 0.05) * 0.40 + handX + Math.sin(elapsed * 8) * tensionShake + Math.sin(elapsed * 31) * ignitionShake,
+      -0.25 + Math.cos(elapsed * 0.044) * 0.22 + handY + Math.cos(elapsed * 7) * tensionShake * 0.6 + Math.cos(elapsed * 37) * ignitionShake * 0.7,
       baseDistance + breathing
     )
     
@@ -542,35 +540,41 @@ const Timeline = ({ planetRef, eventsRef, transitionRef }) => {
       }
     }
 
+    // A short handheld jolt makes the final ignition feel physical without losing the planet framing.
+    if (awakeningStage >= 5) {
+      camera.position.x += Math.sin(elapsed * 31) * 0.075
+      camera.position.y += Math.cos(elapsed * 37) * 0.052
+    }
+
     // --- Planet timeline events (unchanged logic) ---
-    const beaconOpacity = triangle(5, 6, 8.5, 10.5, phase)
+    const beaconOpacity = triangle(3, 3.6, 5, 6.1, phase)
     if (handle.beaconMaterial) handle.beaconMaterial.opacity = beaconOpacity * 0.9
 
-    const planetOpacity = THREE.MathUtils.smoothstep(phase, 8, 15)
+    const planetOpacity = THREE.MathUtils.smoothstep(phase, 4.7, 8.7)
     if (handle.planetMaterial) handle.planetMaterial.uniforms.uOpacity.value = planetOpacity
 
-    const ringOpacity = THREE.MathUtils.smoothstep(phase, 22, 25)
+    const ringOpacity = THREE.MathUtils.smoothstep(phase, 12.6, 14.5)
     if (handle.ringMesh) handle.ringMesh.material.opacity = ringOpacity * 0.5
 
-    const ringLightsOpacity = THREE.MathUtils.smoothstep(phase, 26, 28)
+    const ringLightsOpacity = THREE.MathUtils.smoothstep(phase, 14.8, 16)
     if (handle.ringLights) {
       handle.ringLights.material.opacity = ringLightsOpacity
       handle.ringLights.rotation.z += 0.0002 + ringLightsOpacity * 0.0003
     }
 
-    const debris = triangle(27, 28.5, 33, 34.5, phase)
-    const meteor = triangle(29.5, 30.5, 32.5, 33.5, phase)
-    const shock  = triangle(32.5, 33, 36, 37.5, phase)
-    const city   = THREE.MathUtils.smoothstep(phase, 35, 39)
+    const debris = triangle(15.5, 16.3, 18.9, 19.8, phase)
+    const meteor = triangle(17, 17.6, 18.8, 19.4, phase)
+    const shock  = triangle(18.7, 19, 20.8, 21.6, phase)
+    const city   = THREE.MathUtils.smoothstep(phase, 20.1, 22)
 
-    eventsRef.current.debris = debris
+    eventsRef.current.debris = Math.max(debris, awakeningStage >= 5 ? 1 : 0)
     eventsRef.current.meteor = meteor
-    eventsRef.current.shock  = shock
+    eventsRef.current.shock  = Math.max(shock, awakeningStage >= 5 ? 1 : 0)
     eventsRef.current.city   = city
 
     if (handle.atmosphereUniforms) {
       const base = 0.2 + planetOpacity * 0.9
-      handle.atmosphereUniforms.intensity.value = base + meteor * 0.6 + shock * 1.0 + city * 0.4
+      handle.atmosphereUniforms.intensity.value = base + meteor * 0.6 + Math.max(shock, awakeningStage >= 5 ? 1 : 0) * 1.0 + city * 0.4
     }
 
     if (handle.planetMaterial) {
@@ -588,7 +592,7 @@ const Timeline = ({ planetRef, eventsRef, transitionRef }) => {
 // ------------------------------------------------------------------
 // SceneContent
 // ------------------------------------------------------------------
-const SceneContent = ({ selectedPlanet, onPlanetSelect, descentActive, onDescentProgress, onDescentComplete }) => {
+const SceneContent = ({ selectedPlanet, onPlanetSelect, awakeningStage, earthAttentionPulse, descentActive, onDescentProgress, onDescentComplete }) => {
   const planetRef = useRef()
   const eventsRef = useRef({ debris: 0, meteor: 0, shock: 0, city: 0 })
   const { camera } = useThree()
@@ -632,13 +636,13 @@ const SceneContent = ({ selectedPlanet, onPlanetSelect, descentActive, onDescent
       <SceneFog />
       <CinematicStars />
       <NebulaRibbon />
-      <Planet ref={planetRef} position={[3.0, -0.1, -6]} radius={3.8} onPlanetSelect={(data, ref) => onPlanetSelect({data, groupRef: ref})} selectedPlanetId={selectedPlanet?.data?.id} />
+      <Planet ref={planetRef} position={[3.0, -0.1, -6]} radius={3.8} onPlanetSelect={(data, ref) => onPlanetSelect({data, groupRef: ref})} selectedPlanetId={selectedPlanet?.data?.id} awakeningStage={awakeningStage} attentionPulse={earthAttentionPulse} />
       <FloatingDust />
       <ShootingStars />
       <DebrisField intensityRef={eventsRef} />
       <MeteorStreak intensityRef={eventsRef} />
       <ShockwaveRing intensityRef={eventsRef} />
-      {!descentActive && <Timeline planetRef={planetRef} eventsRef={eventsRef} transitionRef={transitionRef} />}
+      {!descentActive && <Timeline planetRef={planetRef} eventsRef={eventsRef} transitionRef={transitionRef} awakeningStage={awakeningStage} />}
       <TransitionWebGL active={descentActive} targetPlanet={selectedPlanet} onComplete={onDescentComplete} onProgress={onDescentProgress} />
     </>
   )
@@ -648,15 +652,31 @@ const SceneContent = ({ selectedPlanet, onPlanetSelect, descentActive, onDescent
 // SpaceScene
 // ------------------------------------------------------------------
 const SpaceScene = ({ onEnterMission }) => {
-  const [showHud, setShowHud] = useState(false)
   const [selectedPlanet, setSelectedPlanet] = useState(null)
+  const [awakeningStage, setAwakeningStage] = useState(0)
+  const [showEarthHint, setShowEarthHint] = useState(false)
+  const [earthAttentionPulse, setEarthAttentionPulse] = useState(false)
   const [descentActive, setDescentActive] = useState(false)
   const [descentProgress, setDescentProgress] = useState(0)
 
   useEffect(() => {
-    const hudTimeout = setTimeout(() => setShowHud(true), HUD_DELAY_MS)
-    return () => clearTimeout(hudTimeout)
-  }, [])
+    if (selectedPlanet) return undefined
+    const reveal = window.setTimeout(() => setShowEarthHint(true), 3600)
+    const repeat = window.setTimeout(() => { setShowEarthHint(true); setEarthAttentionPulse(true) }, 8600)
+    const settle = window.setTimeout(() => setEarthAttentionPulse(false), 10400)
+    return () => { window.clearTimeout(reveal); window.clearTimeout(repeat); window.clearTimeout(settle) }
+  }, [selectedPlanet])
+
+  const awakenEarth = (target) => {
+    if (descentActive || target?.data?.id !== 'nova-prime') return
+    setShowEarthHint(false)
+    setSelectedPlanet(target)
+    setAwakeningStage((stage) => {
+      const next = Math.min(stage + 1, 5)
+      if (next === 5) window.setTimeout(() => setDescentActive(true), 780)
+      return next
+    })
+  }
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-[#020305]">
@@ -678,6 +698,16 @@ const SpaceScene = ({ onEnterMission }) => {
             from { opacity: 0; }
             to   { opacity: 1; }
           }
+          @keyframes earth-hint-in {
+            0% { opacity: 0; transform: translateY(10px); }
+            16%, 72% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0.55; transform: translateY(-3px); }
+          }
+          @keyframes earth-burst {
+            from { opacity: 0; transform: scale(.4); }
+            28% { opacity: 1; }
+            to { opacity: 0; transform: scale(1.5); }
+          }
         `}
       </style>
 
@@ -690,23 +720,14 @@ const SpaceScene = ({ onEnterMission }) => {
         <color attach="background" args={['#020305']} />
         <SceneContent 
            selectedPlanet={selectedPlanet} 
-           onPlanetSelect={(data) => {
-              if (selectedPlanet?.data?.id === data?.data?.id) {
-                 setDescentActive(true) // trigger descent on second click
-              } else {
-                 setSelectedPlanet(data)
-              }
-           }} 
+           onPlanetSelect={awakenEarth}
+           awakeningStage={awakeningStage}
+           earthAttentionPulse={earthAttentionPulse}
            descentActive={descentActive}
            onDescentProgress={setDescentProgress}
            onDescentComplete={onEnterMission}
         />
       </Canvas>
-
-      {/* Blur background overlay when planet selected */}
-      <div 
-        className={`pointer-events-none absolute inset-0 z-[4] bg-black/30 backdrop-blur-sm transition-opacity duration-1000 ${selectedPlanet ? 'opacity-100' : 'opacity-0'}`} 
-      />
 
       {/* Upper-left violet haze */}
       <div
@@ -738,26 +759,9 @@ const SpaceScene = ({ onEnterMission }) => {
         }}
       />
 
-      <div style={{ opacity: descentActive ? 0 : 1, transition: 'opacity 1s ease', pointerEvents: descentActive ? 'none' : 'auto' }}>
-         <PlanetInfoPanel planet={selectedPlanet?.data} onClose={() => setSelectedPlanet(null)} />
-      </div>
-
-      {showHud && !selectedPlanet && !descentActive && (
-        <div
-          className="absolute inset-0 z-[5]"
-          style={{ animation: 'hud-fade-in 1.6s ease-out forwards' }}
-        >
-          <PlanetScanner onEnterMission={() => {
-             // If a planet is already selected, just descend. Otherwise default to Nova Prime
-             if (!selectedPlanet) {
-                setSelectedPlanet({ data: { id: 'nova-prime', cameraTarget: {x:3,y:-0.1,z:-6} } })
-             }
-             setDescentActive(true)
-          }} />
-        </div>
-      )}
-
       <TransitionHTML active={descentActive} progress={descentProgress} />
+      {!descentActive && showEarthHint && <div className="earth-awakening-hint pointer-events-none absolute inset-x-0 bottom-[14%] z-10 mx-auto w-fit max-w-[calc(100%-2rem)] rounded-full border border-cyan-200/15 bg-slate-950/35 px-5 py-3 text-center shadow-[0_0_28px_rgba(94,206,255,0.1)] backdrop-blur-md" style={{ animation: 'earth-hint-in 4.8s cubic-bezier(.16,1,.3,1) both' }}><p className="text-[10px] font-medium tracking-[.32em] text-white/90 sm:text-[11px] sm:tracking-[.42em]">KEEP CLICKING THE EARTH TO IGNITE THE COLONY</p><span className="mt-2 block text-[9px] tracking-[.28em] text-cyan-100/65">{awakeningStage ? `IGNITION ENERGY ${awakeningStage} / 5` : 'FIVE PULSES WILL AWAKEN NOVA CITY'}</span></div>}
+      {awakeningStage === 5 && !descentActive && <div className="pointer-events-none absolute inset-0 z-[12]" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(140,235,255,.95), rgba(40,130,255,.35) 22%, transparent 60%)', animation: 'earth-burst .78s ease-out forwards' }} />}
     </div>
   )
 }

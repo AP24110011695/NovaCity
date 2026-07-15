@@ -383,7 +383,7 @@ const SmallPlanet = ({ planetId, orbitRadius, orbitSpeed, orbitPhase, size, colo
 // ------------------------------------------------------------------
 const RING_LIGHT_COUNT = 32
 
-const Planet = forwardRef(({ position = [0, 0, -6], radius = 2.4, onPlanetSelect, selectedPlanetId }, ref) => {
+const Planet = forwardRef(({ position = [0, 0, -6], radius = 2.4, onPlanetSelect, selectedPlanetId, awakeningStage = 0, attentionPulse = false }, ref) => {
   const planetGroupRef  = useRef()
   const planetMeshRef   = useRef()
   const planetMaterialRef = useRef()
@@ -440,11 +440,13 @@ const Planet = forwardRef(({ position = [0, 0, -6], radius = 2.4, onPlanetSelect
     if (planetGroupRef.current) {
       planetGroupRef.current.rotation.y += delta * 0.006
       const pulse = hovered ? Math.sin(state.clock.getElapsedTime() * 4) * 0.015 : 0
-      const targetScale = hovered ? 1.02 + pulse : 1
+      const awakeningPulse = awakeningStage ? Math.sin(state.clock.getElapsedTime() * (2 + awakeningStage)) * awakeningStage * 0.008 : 0
+      const guidePulse = attentionPulse ? (Math.sin(state.clock.getElapsedTime() * 5) + 1) * 0.025 : 0
+      const targetScale = (hovered ? 1.02 + pulse : 1) + awakeningPulse + guidePulse
       planetGroupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
     }
     if (atmosphereUniforms) {
-      atmosphereUniforms.intensity.value = THREE.MathUtils.lerp(atmosphereUniforms.intensity.value, hovered ? 0.35 : 0.2, 0.1)
+      atmosphereUniforms.intensity.value = THREE.MathUtils.lerp(atmosphereUniforms.intensity.value, Math.max(hovered ? 0.35 : 0.2, awakeningStage * 0.18), 0.1)
     }
     planetUniforms.uTime.value += delta
   })
@@ -502,6 +504,18 @@ const Planet = forwardRef(({ position = [0, 0, -6], radius = 2.4, onPlanetSelect
             depthWrite={false}
           />
         </mesh>
+
+        {awakeningStage > 0 && <>
+          <mesh scale={1.075 + awakeningStage * 0.012} pointerEvents="none">
+            <sphereGeometry args={[radius, 48, 48]} />
+            <meshBasicMaterial color="#3dc8ff" transparent opacity={awakeningStage * 0.055} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.BackSide} />
+          </mesh>
+          <lineSegments rotation={[0.5, awakeningStage * 0.4, 0]} pointerEvents="none">
+            <edgesGeometry args={[new THREE.IcosahedronGeometry(radius * 1.018, 2)]} />
+            <lineBasicMaterial color="#8eeaff" transparent opacity={Math.min(awakeningStage * 0.13, 0.62)} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </lineSegments>
+          <pointLight color="#4dc9ff" intensity={awakeningStage * 12} distance={18} decay={2} />
+        </>}
         
         {hovered && (
           <Html position={[0, radius * 1.25, 0]} center style={{ pointerEvents: 'none' }}>

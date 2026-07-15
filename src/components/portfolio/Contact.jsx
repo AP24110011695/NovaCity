@@ -73,7 +73,7 @@ export default function Contact() {
     <section
       id="contact"
       ref={sectionRef}
-      className="relative overflow-hidden px-5 py-24 text-white sm:px-6 sm:py-28"
+      className="journey-section relative overflow-hidden px-5 py-24 text-white sm:px-6 sm:py-28"
     >
       {/* ── Atmospheric background ── */}
       <motion.div

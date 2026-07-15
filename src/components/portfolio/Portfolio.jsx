@@ -1,14 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import Lenis from 'lenis'
 import { motion } from 'framer-motion'
-import Navigation from './Navigation'
 import Hero from './Hero'
 import About from './About'
 import Skills from './Skills'
 import Projects from './Projects'
 import Experience from './Experience'
 import Contact from './Contact'
-import Footer from './Footer'
+import JourneyOverlay from './JourneyOverlay'
+import { Education, Achievements } from './EducationAchievements'
 
 const NOVA_EASE = [0.22, 0.68, 0.35, 1]
 
@@ -38,31 +38,7 @@ const ParallaxAtmosphere = () => (
 )
 
 // ── District separator ───────────────────────────────────────────────────────
-const DistrictDivider = ({ coord }) => (
-  <div className="relative mx-auto max-w-6xl px-5 py-1.5 sm:px-6">
-    <div className="flex items-center gap-4">
-      <div
-        className="h-px flex-1"
-        style={{
-          background:
-            'linear-gradient(to right, transparent, rgba(79,124,255,0.2) 30%, rgba(79,124,255,0.12) 70%, transparent)',
-        }}
-      />
-      {coord && (
-        <span className="shrink-0 font-mono text-[9px] tracking-[0.28em] text-[#4F7CFF]/35">
-          {coord}
-        </span>
-      )}
-      <div
-        className="h-px flex-1"
-        style={{
-          background:
-            'linear-gradient(to left, transparent, rgba(79,124,255,0.2) 30%, rgba(79,124,255,0.12) 70%, transparent)',
-        }}
-      />
-    </div>
-  </div>
-)
+const DistrictDivider = () => null
 
 export default function Portfolio() {
   useEffect(() => {
@@ -96,7 +72,7 @@ export default function Portfolio() {
       />
 
       <main className="relative z-[2] min-h-screen w-full bg-transparent text-white">
-        <Navigation />
+        <JourneyOverlay />
         <Hero />
 
         <DistrictDivider coord="NC-01 · 28.2°N · 74.4°E" />
@@ -111,10 +87,15 @@ export default function Portfolio() {
         <DistrictDivider coord="NC-04 · 28.5°N · 74.7°E" />
         <Experience />
 
+        <DistrictDivider coord="NC-05 · KNOWLEDGE LIBRARY" />
+        <Education />
+
+        <DistrictDivider coord="NC-06 · ACHIEVEMENT HALL" />
+        <Achievements />
+
         <DistrictDivider coord="NC-05 · 28.6°N · 74.8°E" />
         <Contact />
 
-        <Footer />
       </main>
     </>
   )

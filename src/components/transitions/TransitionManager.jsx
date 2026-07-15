@@ -6,7 +6,7 @@ import { CloudBank, SpeedStreaks, ImpactDebris, ShockwaveRing, ScatteringOverlay
 import { triggerCinematicEvent } from '../../hooks/useCinematicEvents'
 
 // Total duration of the descent animation
-const DESCENT_DURATION = 9.2
+const DESCENT_DURATION = 5.8
 
 export const TransitionWebGL = ({ active, targetPlanet, onComplete, onProgress }) => {
   const { camera } = useThree()
@@ -121,7 +121,7 @@ export const TransitionWebGL = ({ active, targetPlanet, onComplete, onProgress }
 export const TransitionHTML = ({ active, progress }) => {
   if (!active) return null
 
-  // Based on T.TOTAL = 9200ms
+  // Keep the HTML effects locked to the accelerated WebGL descent.
   const totalMs = DESCENT_DURATION * 1000
 
   return (

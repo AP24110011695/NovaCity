@@ -43,6 +43,10 @@ const HoloWindow = memo(({ landmark, onClose }) => {
     });
   }, [landmark.id]); // re-run if landmark changes
 
+  useEffect(() => {
+    setActiveTab('projects');
+  }, [landmark.id]);
+
   // ── Closing animation ──────────────────────────────────────────────────────
   const handleClose = useCallback(() => {
     if (isClosing || !windowRef.current) return;
@@ -122,7 +126,7 @@ const HoloWindow = memo(({ landmark, onClose }) => {
 
         {/* Body is positioned relatively so scanlines overlay works */}
         <div className="relative flex-1 min-h-0 overflow-hidden">
-          <HoloBody activeTab={activeTab} accentColor={ac} />
+          <HoloBody activeTab={activeTab} accentColor={ac} landmark={landmark} />
         </div>
 
         <HoloFooter landmark={landmark} />

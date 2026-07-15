@@ -7,8 +7,19 @@ import { useBuildingSelection } from './BuildingManager'
 import { DISTRICTS } from '../../data/districts'
 import { LANDMARKS } from '../../data/landmarks'
 
-export const LandingCamera = ({ onLanded }) => {
-  const { camera, scene } = useThree()
+const JOURNEY_STOPS = {
+  hero: { position: [0, 2.2, 15], target: [0, 15, -20] },
+  about: { position: [-18, 8, 9], target: [-6, 10, -24] },
+  skills: { position: [18, 11, 6], target: [9, 12, -24] },
+  projects: { position: [5, 5, 3], target: [0, 11, -25] },
+  experience: { position: [-22, 10, -4], target: [-12, 9, -28] },
+  education: { position: [22, 12, -8], target: [12, 12, -30] },
+  achievements: { position: [-10, 17, -16], target: [0, 10, -30] },
+  contact: { position: [0, 7, 5], target: [0, 8, -27] },
+}
+
+export const LandingCamera = ({ onLanded, chapter = 'hero' }) => {
+  const { camera } = useThree()
   const { activeDistrictId } = useDistrictSelection()
   const { activeBuildingId } = useBuildingSelection()
   
@@ -45,6 +56,21 @@ export const LandingCamera = ({ onLanded }) => {
     })
 
   }, [camera, onLanded])
+
+  useEffect(() => {
+    const stop = JOURNEY_STOPS[chapter]
+    if (!stop) return
+    gsap.killTweensOf(camera.position)
+    gsap.killTweensOf(lookTarget.current)
+    gsap.to(camera.position, {
+      x: stop.position[0], y: stop.position[1], z: stop.position[2],
+      duration: 2.4, ease: 'power3.inOut',
+    })
+    gsap.to(lookTarget.current, {
+      x: stop.target[0], y: stop.target[1], z: stop.target[2],
+      duration: 2.4, ease: 'power3.inOut',
+    })
+  }, [chapter, camera])
 
   useEffect(() => {
     let targetPos = null;

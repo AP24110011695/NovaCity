@@ -1,6 +1,4 @@
-import Portfolio from './portfolio/Portfolio'
-
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 
 import { AnimatePresence, motion } from 'framer-motion'
 
@@ -13,6 +11,14 @@ import SpaceScene from './SpaceScene'
 import AtmosphereTransition from './AtmosphereTransition'
 
 import CityReveal from './CityReveal'
+
+const Portfolio = lazy(() => import('./portfolio/Portfolio'))
+
+const PortfolioFallback = () => (
+  <div className="min-h-screen pt-16" role="status" aria-label="Loading portfolio experience">
+    <div className="mx-auto h-px w-40 bg-gradient-to-r from-transparent via-[#4f7cff]/60 to-transparent shadow-[0_0_18px_rgba(79,124,255,0.35)]" />
+  </div>
+)
 
 
 
@@ -36,13 +42,13 @@ const SCENES = {
 
 
 
-const BLACK_HOLD_DURATION = 1600
+const BLACK_HOLD_DURATION = 650
 
 const MISSION_FADE_DURATION = 1200
 
 const SCENE_FADE_DURATION = 1.4
 
-const ARRIVAL_HOLD_DURATION = 2800
+const ARRIVAL_HOLD_DURATION = 2200
 
 const PORTFOLIO_FADE_DURATION = 2.4
 
@@ -71,8 +77,6 @@ const sceneVariants = {
 }
 
 
-
-const LETTERBOX_HEIGHT = '5.5%'
 
 const NOVA_EASE = [0.22, 0.68, 0.35, 1]
 
@@ -116,7 +120,7 @@ const SceneManager = () => {
 
     setTimeout(() => {
 
-      setScene(SCENES.LOADING)
+      setScene(SCENES.SPACE)
 
       setIsFadingOut(false)
 
@@ -202,30 +206,6 @@ const SceneManager = () => {
 
 
 
-          <motion.div
-
-            className="pointer-events-none absolute inset-x-0 top-0 z-[60] bg-black"
-
-            style={{ height: LETTERBOX_HEIGHT }}
-
-            animate={{ opacity: portfolioVisible ? 0.35 : 1 }}
-
-            transition={{ duration: 2.0, ease: NOVA_EASE }}
-
-          />
-
-          <motion.div
-
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-[60] bg-black"
-
-            style={{ height: LETTERBOX_HEIGHT }}
-
-            animate={{ opacity: portfolioVisible ? 0.35 : 1 }}
-
-            transition={{ duration: 2.0, ease: NOVA_EASE }}
-
-          />
-
         </div>
 
 
@@ -288,7 +268,9 @@ const SceneManager = () => {
 
             >
 
-              <Portfolio />
+              <Suspense fallback={<PortfolioFallback />}>
+                <Portfolio />
+              </Suspense>
 
             </motion.div>
 
@@ -445,22 +427,6 @@ const SceneManager = () => {
       </AnimatePresence>
 
 
-
-      <div
-
-        className="pointer-events-none absolute inset-x-0 top-0 z-[60] bg-black"
-
-        style={{ height: LETTERBOX_HEIGHT }}
-
-      />
-
-      <div
-
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[60] bg-black"
-
-        style={{ height: LETTERBOX_HEIGHT }}
-
-      />
 
     </div>
 

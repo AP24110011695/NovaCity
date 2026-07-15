@@ -253,25 +253,6 @@ export default function Hero() {
           ))}
         </motion.div>
 
-        {/* Scroll cue */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2.4, duration: 1 }}
-          className="mt-14 flex flex-col items-center gap-2"
-        >
-          <p className="font-mono text-[9px] uppercase tracking-[0.42em] text-white/18">
-            Descend into the City
-          </p>
-          <div
-            className="h-8 w-px"
-            style={{
-              background:
-                'linear-gradient(to bottom, rgba(79,124,255,0.38), transparent)',
-              animation: 'hero-scroll-pulse 2.2s ease-in-out infinite',
-            }}
-          />
-        </motion.div>
       </div>
     </section>
   )

@@ -1,675 +1,160 @@
-import EnterButton from "./EnterButton";
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// ─── TIMING (ms from page load) ──────────────────────────────────────────────
-// Total opening cinematic: ~55 s, first 15 s must grab attention immediately.
-//
-// 0 ms    – Solar system INSTANTLY visible (no fade-in delay)
-// 0 ms    – Space-time rupture fires immediately
-// 1 800   – "TRANSMISSION INCOMING" fades in
-// 3 200   – transmission fades out
-// 4 200   – "YEAR 2178" (signal-flicker effect)
-// 6 400   – year fades out
-// 7 600   – "EARTH COULD NO LONGER HOLD US"
-// 10 000  – earth line fades out
-// 11 400  – final title reveal
-// ─────────────────────────────────────────────────────────────────────────────
+const SUN_POSITION = new THREE.Vector3(-17, 0, 0)
 
-const PHASES = {
-  toTransmission:     1800,
-  transmissionHold:   1400,
-  toYear:              600,
-  yearHold:           2200,
-  toEarth:             600,
-  earthHold:          2400,
-  toFinal:            1400,
-}
-
-// ─── SOLAR SYSTEM (Three.js inside IntroSequence) ────────────────────────────
-
-const PLANET_DATA = [
-  // [orbitRadius, size, color, speed, tilt, ringColor, hasMoon, ringSize]
-  { r: 6.5,  size: 0.28, color: '#c0a060', speed: 0.55,  tilt: 0.1,  ring: null,      moon: false },
-  { r: 9.5,  size: 0.38, color: '#4488cc', speed: 0.38,  tilt: 0.05, ring: null,      moon: true  },
-  { r: 13.0, size: 0.65, color: '#cc6633', speed: 0.24,  tilt: 0.15, ring: null,      moon: true  },
-  { r: 17.5, size: 1.05, color: '#e8c87a', speed: 0.14,  tilt: 0.08, ring: '#d4aa50', moon: true  },  // Saturn-like
-  { r: 22.5, size: 0.75, color: '#5599ee', speed: 0.09,  tilt: 1.48, ring: '#3366bb', moon: true  },  // Uranus-like
-  { r: 28.0, size: 0.72, color: '#224488', speed: 0.06,  tilt: 0.3,  ring: null,      moon: false },
+const PLANETS = [
+  { name: 'Mercury', radius: 7.0, size: 0.42, speed: 0.18, phase: 0.05, kind: 0 },
+  { name: 'Venus', radius: 9.6, size: 0.72, speed: 0.14, phase: 0.10, kind: 1 },
+  { name: 'Earth', radius: 12.5, size: 0.80, speed: 0.11, phase: 0.18, kind: 2 },
+  { name: 'Mars', radius: 15.7, size: 0.58, speed: 0.09, phase: 0.28, kind: 3 },
+  { name: 'Jupiter', radius: 20.4, size: 2.65, speed: 0.058, phase: 0.38, kind: 4 },
+  { name: 'Saturn', radius: 25.4, size: 2.10, speed: 0.045, phase: 0.50, kind: 5, rings: true },
+  { name: 'Uranus', radius: 30.5, size: 1.25, speed: 0.032, phase: 0.62, kind: 6 },
+  { name: 'Neptune', radius: 35.5, size: 1.22, speed: 0.025, phase: 0.75, kind: 7 },
 ]
 
-const STAR_COUNT = 3200
+const hashShader = `
+  float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123); }
+  float noise(vec3 p) {
+    vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y), mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+  }
+  float fbm(vec3 p) { float n = 0.0, a = .5; for (int i = 0; i < 4; i++) { n += a * noise(p); p = p * 2.03 + 19.7; a *= .5; } return n; }
+`
 
-const NebulaGlow = () => {
-  const meshRef = useRef()
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return
-    const t = clock.getElapsedTime()
-    meshRef.current.material.opacity = 0.22 + Math.sin(t * 0.18) * 0.06
-  })
-  return (
-    <mesh ref={meshRef} position={[-8, 4, -40]}>
-      <planeGeometry args={[80, 60]} />
-      <meshBasicMaterial
-        color="#3a1a6a"
-        transparent
-        opacity={0.22}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  )
-}
-
-const NebulaGlow2 = () => {
-  const meshRef = useRef()
-  useFrame(({ clock }) => {
-    if (!meshRef.current) return
-    const t = clock.getElapsedTime()
-    meshRef.current.material.opacity = 0.14 + Math.sin(t * 0.13 + 2.1) * 0.05
-  })
-  return (
-    <mesh ref={meshRef} position={[12, -6, -50]}>
-      <planeGeometry args={[90, 70]} />
-      <meshBasicMaterial
-        color="#102a5a"
-        transparent
-        opacity={0.14}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  )
-}
-
-const SolarStars = () => {
-  const matRef = useRef()
-
-  const { positions, sizes, colors, phases } = useMemo(() => {
-    const positions = new Float32Array(STAR_COUNT * 3)
-    const sizes     = new Float32Array(STAR_COUNT)
-    const colors    = new Float32Array(STAR_COUNT * 3)
-    const phases    = new Float32Array(STAR_COUNT)
-
-    const palette = [
-      [1.0, 1.0, 1.0],
-      [0.7, 0.8, 1.0],
-      [1.0, 0.9, 0.7],
-      [0.6, 0.7, 1.0],
-      [1.0, 0.7, 0.5],
-    ]
-
-    for (let i = 0; i < STAR_COUNT; i++) {
-      const radius = 55 + Math.random() * 50
-      const theta  = Math.random() * Math.PI * 2
-      const phi    = Math.acos(2 * Math.random() - 1)
-      positions[i * 3]     = radius * Math.sin(phi) * Math.cos(theta)
-      positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
-      positions[i * 3 + 2] = radius * Math.cos(phi)
-
-      sizes[i] = Math.random() * 2.2 + 0.3
-      phases[i] = Math.random() * Math.PI * 2
-
-      const col = palette[Math.floor(Math.random() * palette.length)]
-      colors[i * 3]     = col[0]
-      colors[i * 3 + 1] = col[1]
-      colors[i * 3 + 2] = col[2]
-    }
-    return { positions, sizes, colors, phases }
-  }, [])
-
-  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uPR: { value: Math.min(window.devicePixelRatio, 1.5) } }), [])
-
-  useFrame(({ clock }) => {
-    if (matRef.current) matRef.current.uniforms.uTime.value = clock.getElapsedTime()
-  })
-
-  const vert = `
-    attribute float aSize;
-    attribute float aPhase;
-    uniform float uTime;
-    uniform float uPR;
-    void main() {
-      float tw = 1.0 + sin(uTime * 0.8 + aPhase) * 0.25;
-      vec4 mv = modelViewMatrix * vec4(position, 1.0);
-      gl_PointSize = aSize * uPR * (250.0 / -mv.z) * tw;
-      gl_Position = projectionMatrix * mv;
-    }
-  `
-  const frag = `
-    varying vec3 vColor;
-    void main() {
-      vec2 uv = gl_PointCoord - 0.5;
-      float d = length(uv);
-      float a = smoothstep(0.5, 0.0, d);
-      gl_FragColor = vec4(vColor, a * 0.95);
-    }
-  `
-
-  return (
-    <points>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={STAR_COUNT} array={positions} itemSize={3} />
-        <bufferAttribute attach="attributes-aSize"    count={STAR_COUNT} array={sizes}     itemSize={1} />
-        <bufferAttribute attach="attributes-color"    count={STAR_COUNT} array={colors}    itemSize={3} />
-        <bufferAttribute attach="attributes-aPhase"   count={STAR_COUNT} array={phases}    itemSize={1} />
-      </bufferGeometry>
-      <shaderMaterial
-        ref={matRef}
-        vertexShader={vert}
-        fragmentShader={frag}
-        uniforms={uniforms}
-        vertexColors
-        transparent
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
-    </points>
-  )
-}
+const planetVertex = `varying vec3 vNormal; varying vec3 vPosition; void main() { vNormal = normalize(normalMatrix * normal); vPosition = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`
+const planetFragment = `
+  uniform float uKind; uniform float uTime; varying vec3 vNormal; varying vec3 vPosition;
+  ${hashShader}
+  void main() {
+    vec3 lightDirection = normalize(vec3(-.75, .32, .6));
+    float diffuse = max(.10, dot(vNormal, lightDirection));
+    float n = fbm(vPosition * 5.0 + uTime * .012);
+    vec3 color;
+    if (uKind < .5) color = mix(vec3(.12,.10,.09), vec3(.56,.49,.42), n);
+    else if (uKind < 1.5) color = mix(vec3(.31,.18,.08), vec3(.91,.62,.27), n);
+    else if (uKind < 2.5) {
+      float land = smoothstep(.53, .63, fbm(vPosition * 4.8));
+      color = mix(vec3(.025,.17,.43), vec3(.10,.38,.13), land);
+      color = mix(color, vec3(.58,.42,.19), smoothstep(.73,.82, fbm(vPosition * 8.0)) * land);
+      float cloud = smoothstep(.72, .80, fbm(vPosition * 10.0 + vec3(uTime * .018, 0., 0.)));
+      color = mix(color, vec3(.88,.94,1.), cloud * .55);
+    } else if (uKind < 3.5) color = mix(vec3(.23,.055,.025), vec3(.76,.22,.09), n);
+    else if (uKind < 4.5) {
+      float bands = sin(vPosition.y * 21.0 + n * 5.0) * .5 + .5;
+      color = mix(vec3(.31,.13,.075), vec3(.88,.62,.36), bands);
+      float spot = smoothstep(.15, .02, length(vec2(vPosition.x + .62, vPosition.y + .18)));
+      color = mix(color, vec3(.55,.08,.025), spot);
+    } else if (uKind < 5.5) color = mix(vec3(.36,.27,.12), vec3(.88,.75,.45), n);
+    else if (uKind < 6.5) color = mix(vec3(.23,.55,.59), vec3(.69,.91,.89), n);
+    else color = mix(vec3(.015,.06,.24), vec3(.05,.27,.75), n);
+    float rim = pow(1.0 - max(0.0, dot(vNormal, normalize(vec3(.0,.15,.95)))), 3.0);
+    gl_FragColor = vec4(color * diffuse + rim * vec3(.08,.16,.32), 1.0);
+  }
+`
 
 const Sun = () => {
-  const ref  = useRef()
-  const gRef = useRef()
+  const surface = useRef(), corona = useRef(), rays = useRef()
+  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), [])
   useFrame(({ clock }) => {
-    if (!ref.current) return
     const t = clock.getElapsedTime()
-    ref.current.material.opacity = 0.88 + Math.sin(t * 0.4) * 0.08
-    if (gRef.current) {
-      gRef.current.material.opacity = 0.35 + Math.sin(t * 0.22 + 1) * 0.1
-      const s = 1 + Math.sin(t * 0.3) * 0.04
-      gRef.current.scale.setScalar(s)
-    }
+    uniforms.uTime.value = t
+    const pulse = 1 + Math.sin(t * 0.85) * 0.025 + Math.sin(t * 1.7) * 0.012
+    corona.current?.scale.setScalar(pulse)
+    if (rays.current) rays.current.rotation.z = t * 0.012
   })
-  return (
-    <group>
-      {/* Corona glow */}
-      <mesh ref={gRef}>
-        <sphereGeometry args={[2.2, 32, 32]} />
-        <meshBasicMaterial color="#ff9944" transparent opacity={0.35} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </mesh>
-      {/* Sun core */}
-      <mesh ref={ref}>
-        <sphereGeometry args={[1.5, 32, 32]} />
-        <meshBasicMaterial color="#ffe060" transparent opacity={0.88} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </mesh>
-      {/* Point light */}
-      <pointLight color="#ffe8a0" intensity={4} distance={80} decay={1.2} />
-    </group>
-  )
+  const fragment = `uniform float uTime; varying vec3 vPosition; ${hashShader} void main() { float flow = fbm(normalize(vPosition) * 3.9 + vec3(0., uTime * .13, -uTime * .06)); float cells = fbm(normalize(vPosition) * 12.0 - uTime * .08); vec3 c = mix(vec3(.9,.055,.003), vec3(1.,.78,.08), smoothstep(.22,.82, flow)); c += vec3(1.,.24,.01) * smoothstep(.62,.9,cells) * .36; gl_FragColor = vec4(c,1.); }`
+  return <group position={SUN_POSITION.toArray()}>
+    <mesh ref={rays} scale={1.08}><sphereGeometry args={[5.75, 32, 32]} /><meshBasicMaterial color="#ff8a19" transparent opacity={0.052} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.BackSide} toneMapped={false} /></mesh>
+    <mesh ref={corona} scale={1.03}><sphereGeometry args={[5.25, 48, 48]} /><meshBasicMaterial color="#ff7b12" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.BackSide} toneMapped={false} /></mesh>
+    <mesh ref={surface}><sphereGeometry args={[4.55, 72, 72]} /><shaderMaterial vertexShader="varying vec3 vPosition; void main(){ vPosition=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }" fragmentShader={fragment} uniforms={uniforms} toneMapped={false} /></mesh>
+    <pointLight color="#ffb34a" intensity={80} distance={45} decay={1.55} />
+  </group>
 }
 
-const OrbitRing = ({ radius }) => (
-  <mesh rotation={[Math.PI / 2, 0, 0]}>
-    <ringGeometry args={[radius - 0.015, radius + 0.015, 128]} />
-    <meshBasicMaterial color="#ffffff" transparent opacity={0.04} side={THREE.DoubleSide} depthWrite={false} />
-  </mesh>
-)
+const Orbit = ({ radius, index }) => <mesh position={SUN_POSITION.toArray()} rotation={[Math.PI / 2 + 0.035 * (index % 2), 0.02 * index, 0]}>
+  <ringGeometry args={[radius - 0.018, radius + 0.018, 192]} />
+  <meshBasicMaterial color={index > 4 ? '#7199db' : '#f6be70'} transparent opacity={0.30} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+</mesh>
+
+const SaturnRings = () => <mesh rotation={[1.08, 0.16, 0.08]}>
+  <ringGeometry args={[2.55, 4.25, 128]} />
+  <shaderMaterial transparent side={THREE.DoubleSide} depthWrite={false} uniforms={{ uColor: { value: new THREE.Color('#d9c78d') } }} vertexShader="varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}" fragmentShader="uniform vec3 uColor; varying vec2 vUv; void main(){ float bands=.50+.28*sin(vUv.x*82.); float gaps=smoothstep(.05,.14,vUv.x)*smoothstep(.98,.83,vUv.x); gl_FragColor=vec4(uColor*(.72+bands),gaps*(.20+.52*bands));}" />
+</mesh>
+
+const Planet = ({ planet }) => {
+  const orbit = useRef(), body = useRef(), atmosphere = useRef()
+  const uniforms = useMemo(() => ({ uKind: { value: planet.kind }, uTime: { value: 0 } }), [planet.kind])
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime(), angle = planet.phase + t * planet.speed
+    orbit.current?.position.set(SUN_POSITION.x + Math.cos(angle) * planet.radius, Math.sin(angle * 1.7) * .45, Math.sin(angle) * planet.radius * .42)
+    if (body.current) body.current.rotation.y = t * (planet.name === 'Jupiter' ? .16 : .32)
+    if (atmosphere.current) atmosphere.current.material.opacity = .10 + Math.sin(t * .9) * .018
+    uniforms.uTime.value = t
+  })
+  return <group ref={orbit}>
+    <mesh ref={body} rotation={[planet.name === 'Uranus' ? 1.45 : .12, 0, 0]}><sphereGeometry args={[planet.size, 48, 48]} /><shaderMaterial vertexShader={planetVertex} fragmentShader={planetFragment} uniforms={uniforms} /></mesh>
+    {planet.name === 'Earth' && <mesh ref={atmosphere} scale={1.08}><sphereGeometry args={[planet.size, 36, 36]} /><meshBasicMaterial color="#7ed8ff" transparent opacity={.10} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh>}
+    {planet.rings && <SaturnRings />}
+  </group>
+}
+
+const StarField = () => {
+  const ref = useRef(), count = 5200
+  const { positions, colors, sizes } = useMemo(() => {
+    const positions = new Float32Array(count * 3), colors = new Float32Array(count * 3), sizes = new Float32Array(count)
+    const palette = [[.72,.8,1],[1,.87,.63],[.74,.56,1],[1,1,1]]
+    for (let i = 0; i < count; i++) { const r = 65 + Math.random() * 80, a = Math.random() * Math.PI * 2, p = Math.acos(2 * Math.random() - 1), c = palette[(Math.random() * palette.length) | 0]; positions.set([r * Math.sin(p) * Math.cos(a), r * Math.sin(p) * Math.sin(a), r * Math.cos(p)], i * 3); colors.set(c, i * 3); sizes[i] = Math.random() * 1.25 + .18 }
+    return { positions, colors, sizes }
+  }, [])
+  useFrame(({ clock }) => { if (ref.current) ref.current.rotation.y = clock.getElapsedTime() * .0018 })
+  return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} /><bufferAttribute attach="attributes-color" count={count} array={colors} itemSize={3} /><bufferAttribute attach="attributes-size" count={count} array={sizes} itemSize={1} /></bufferGeometry><pointsMaterial size={.12} vertexColors transparent opacity={.95} sizeAttenuation depthWrite={false} /></points>
+}
+
+const Nebula = () => {
+  const cloud = useRef(), count = 850
+  const positions = useMemo(() => { const p = new Float32Array(count * 3); for (let i = 0; i < count; i++) { const right = i % 2, x = right ? 20 + (Math.random() - .5) * 34 : -8 + (Math.random() - .5) * 30; p.set([x, (Math.random() - .5) * 21 + (right ? 3 : 7), -34 - Math.random() * 17], i * 3) } return p }, [])
+  useFrame(({ clock }) => { if (cloud.current) cloud.current.rotation.z = Math.sin(clock.getElapsedTime() * .03) * .025 })
+  return <points ref={cloud}><bufferGeometry><bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} /></bufferGeometry><pointsMaterial color="#7861c7" size={2.4} transparent opacity={.07} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} /></points>
+}
+
+// Curved cyan and violet dust makes the far field read as a distant galaxy.
+const GalaxyDust = () => {
+  const ref = useRef(), count = 1500
+  const { positions, colors } = useMemo(() => {
+    const positions = new Float32Array(count * 3), colors = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      const x = -37 + Math.random() * 78
+      positions.set([x, Math.sin((x + 6) * .095) * 7 + (Math.random() - .5) * 7, -48 - Math.random() * 18], i * 3)
+      colors.set(Math.random() > .48 ? [.16, .59, .92] : [.55, .23, .86], i * 3)
+    }
+    return { positions, colors }
+  }, [])
+  useFrame(({ clock }) => { if (ref.current) ref.current.rotation.z = Math.sin(clock.getElapsedTime() * .02) * .012 })
+  return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} /><bufferAttribute attach="attributes-color" count={count} array={colors} itemSize={3} /></bufferGeometry><pointsMaterial size={.22} vertexColors transparent opacity={.28} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} /></points>
+}
 
 const AsteroidBelt = () => {
-  const ref    = useRef()
-  const count  = 340
-  const positions = useMemo(() => {
-    const arr = new Float32Array(count * 3)
-    for (let i = 0; i < count; i++) {
-      const angle  = (i / count) * Math.PI * 2 + Math.random() * 0.18
-      const radius = 10.8 + (Math.random() - 0.5) * 1.4
-      arr[i * 3]     = Math.cos(angle) * radius
-      arr[i * 3 + 1] = (Math.random() - 0.5) * 0.5
-      arr[i * 3 + 2] = Math.sin(angle) * radius
-    }
-    return arr
-  }, [])
-
-  useFrame(({ clock }) => {
-    if (ref.current) ref.current.rotation.y = clock.getElapsedTime() * 0.025
-  })
-
-  return (
-    <points ref={ref}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
-      </bufferGeometry>
-      <pointsMaterial color="#aa9966" size={0.055} sizeAttenuation transparent opacity={0.55} blending={THREE.AdditiveBlending} depthWrite={false} />
-    </points>
-  )
+  const ref = useRef(), count = 700
+  const positions = useMemo(() => { const p = new Float32Array(count * 3); for (let i = 0; i < count; i++) { const a = Math.random() * Math.PI * 2, r = 17.5 + Math.random() * 1.55; p.set([SUN_POSITION.x + Math.cos(a) * r, (Math.random() - .5) * .7, Math.sin(a) * r * .42], i * 3) } return p }, [])
+  useFrame(({ clock }) => { if (ref.current) ref.current.rotation.y = clock.getElapsedTime() * .008 })
+  return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} /></bufferGeometry><pointsMaterial color="#a79888" size={.075} transparent opacity={.62} sizeAttenuation depthWrite={false} /></points>
 }
 
-const PlanetMesh = ({ data, index }) => {
-  const groupRef  = useRef()
-  const meshRef   = useRef()
-  const moonRef   = useRef()
-  const initAngle = useMemo(() => (index / PLANET_DATA.length) * Math.PI * 2 + Math.random() * 0.5, [index])
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return
-    const t = clock.getElapsedTime()
-    const angle = initAngle + t * data.speed * 0.22
-    groupRef.current.position.set(
-      Math.cos(angle) * data.r,
-      0,
-      Math.sin(angle) * data.r
-    )
-    if (meshRef.current) meshRef.current.rotation.y = t * 0.5
-    if (moonRef.current) {
-      const ma = t * 1.4
-      moonRef.current.position.set(Math.cos(ma) * (data.size * 3.2 + 0.4), Math.sin(ma * 0.3) * 0.15, Math.sin(ma) * (data.size * 3.2 + 0.4))
-    }
-  })
-
-  return (
-    <group ref={groupRef}>
-      {/* Planet body */}
-      <mesh ref={meshRef} rotation={[data.tilt, 0, 0]}>
-        <sphereGeometry args={[data.size, 24, 24]} />
-        <meshStandardMaterial color={data.color} roughness={0.8} metalness={0.05} />
-        {/* Atmospheric rim glow */}
-        <mesh scale={[1.12, 1.12, 1.12]}>
-          <sphereGeometry args={[data.size, 16, 16]} />
-          <meshBasicMaterial color={data.color} transparent opacity={0.12} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.BackSide} />
-        </mesh>
-      </mesh>
-
-      {/* Saturn-style rings */}
-      {data.ring && (
-        <mesh rotation={[Math.PI * 0.42, 0.3, 0]}>
-          <ringGeometry args={[data.size * 1.4, data.size * 2.2, 80]} />
-          <meshBasicMaterial color={data.ring} transparent opacity={0.38} side={THREE.DoubleSide} depthWrite={false} />
-        </mesh>
-      )}
-
-      {/* Moon */}
-      {data.moon && (
-        <mesh ref={moonRef}>
-          <sphereGeometry args={[data.size * 0.28, 12, 12]} />
-          <meshStandardMaterial color="#aaaaaa" roughness={1} />
-        </mesh>
-      )}
-    </group>
-  )
-}
-
-const CinematicCamera = ({ phase }) => {
-  const { camera } = useThree()
-  const t0 = useRef(null)
-
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime()
-    if (t0.current === null) t0.current = t
-
-    const elapsed = t - t0.current
-
-    // Cinematic flythrough: start far, pull in and orbit gently
-    const approach = THREE.MathUtils.smoothstep(elapsed, 0, 18)
-    const z = THREE.MathUtils.lerp(48, 26, approach)
-    const x = Math.sin(t * 0.055) * 5 + Math.sin(t * 0.018) * 2
-    const y = Math.cos(t * 0.04) * 2.5 + 1
-
-    // Subtle handheld micro-shake for cinematic feel
-    const shake = 0.012
-    camera.position.set(
-      x + Math.sin(t * 6.3) * shake,
-      y + Math.cos(t * 5.7) * shake * 0.6,
-      z
-    )
-    camera.lookAt(0, 0, 0)
-  })
+const CinematicCamera = () => {
+  const { camera, pointer } = useThree()
+  useFrame(({ clock }) => { const t = clock.getElapsedTime(); camera.position.set(5 + Math.sin(t * .055) * .85 + pointer.x * 1.1, 10 + Math.cos(t * .045) * .65 + pointer.y * .65, 57); camera.lookAt(-4.5 + pointer.x * .28, 0, 0) })
   return null
 }
 
-const SolarSystem = ({ phase }) => (
-  <>
-    <ambientLight intensity={0.08} />
-    <SolarStars />
-    <NebulaGlow />
-    <NebulaGlow2 />
-    <Sun />
-    {/* Orbit rings */}
-    {PLANET_DATA.map((p, i) => <OrbitRing key={`orbit-${i}`} radius={p.r} />)}
-    <AsteroidBelt />
-    {/* Planets */}
-    {PLANET_DATA.map((p, i) => <PlanetMesh key={`planet-${i}`} data={p} index={i} />)}
-    <CinematicCamera phase={phase} />
-  </>
-)
-
-// ─── SPACE-TIME RUPTURE (CSS/SVG overlay) ─────────────────────────────────────
-
-const SpaceTimeRupture = () => (
-  <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center">
-    <style>{`
-      @keyframes rupture-core {
-        0%   { opacity: 0; transform: translate(-50%,-50%) scale(0); filter: blur(30px); }
-        8%   { opacity: 1; transform: translate(-50%,-50%) scale(1.2);  filter: blur(2px); }
-        20%  { opacity: 0.85; transform: translate(-50%,-50%) scale(0.95); filter: blur(1px); }
-        60%  { opacity: 0.55; transform: translate(-50%,-50%) scale(1.0); filter: blur(2px); }
-        100% { opacity: 0; transform: translate(-50%,-50%) scale(1.4); filter: blur(20px); }
-      }
-      @keyframes rupture-ray {
-        0%   { opacity: 0; transform: scaleY(0); }
-        5%   { opacity: 1; transform: scaleY(1); }
-        30%  { opacity: 0.6; }
-        80%  { opacity: 0.15; }
-        100% { opacity: 0; }
-      }
-      @keyframes rupture-ring {
-        0%   { opacity: 0; transform: translate(-50%,-50%) scale(0); }
-        6%   { opacity: 0.9; transform: translate(-50%,-50%) scale(1); }
-        100% { opacity: 0; transform: translate(-50%,-50%) scale(3.5); }
-      }
-      @keyframes energy-pulse {
-        0%, 100% { opacity: 0.6; }
-        50%       { opacity: 1; }
-      }
-    `}</style>
-
-    {/* Central core flash */}
-    <div style={{
-      position: 'absolute', left: '50%', top: '50%',
-      width: 220, height: 220,
-      borderRadius: '50%',
-      background: 'radial-gradient(circle, rgba(180,130,255,0.95) 0%, rgba(79,124,255,0.7) 35%, transparent 72%)',
-      animation: 'rupture-core 3.2s cubic-bezier(0.16,1,0.3,1) forwards',
-    }} />
-
-    {/* Expanding shock rings */}
-    {[0, 0.15, 0.35].map((delay, i) => (
-      <div key={i} style={{
-        position: 'absolute', left: '50%', top: '50%',
-        width: 160 + i * 80, height: 160 + i * 80,
-        borderRadius: '50%',
-        border: '1.5px solid rgba(160,100,255,0.7)',
-        animation: `rupture-ring 2.2s ${delay}s cubic-bezier(0.16,1,0.3,1) forwards`,
-      }} />
-    ))}
-
-    {/* Radiating energy rays */}
-    {Array.from({ length: 12 }, (_, i) => {
-      const angle = (i / 12) * 360
-      const len   = 120 + (i % 3) * 60
-      return (
-        <div key={`ray-${i}`} style={{
-          position: 'absolute', left: '50%', top: '50%',
-          width: 1.5,
-          height: len,
-          background: 'linear-gradient(to bottom, rgba(180,130,255,0.9), transparent)',
-          transformOrigin: 'top center',
-          transform: `rotate(${angle}deg) translateX(-50%)`,
-          animation: `rupture-ray 2.8s ${0.02 * i}s ease-out forwards`,
-        }} />
-      )
-    })}
-  </div>
-)
-
-// ─── NEBULA BACKGROUND (CSS) ───────────────────────────────────────────────────
-
-const NebulaBg = () => (
-  <div className="pointer-events-none absolute inset-0 z-[1]">
-    <style>{`
-      @keyframes nebula-drift-a {
-        0%,100% { transform: translate(-2%,-2%) scale(1); }
-        50%     { transform: translate(2%,3%) scale(1.05); }
-      }
-      @keyframes nebula-drift-b {
-        0%,100% { transform: translate(1%,2%) scale(1.03); }
-        50%     { transform: translate(-3%,-1%) scale(1); }
-      }
-    `}</style>
-    <div style={{
-      position: 'absolute', inset: 0,
-      background: 'radial-gradient(ellipse 65% 50% at 20% 25%, rgba(90,40,160,0.18), transparent 60%)',
-      animation: 'nebula-drift-a 80s ease-in-out infinite',
-    }} />
-    <div style={{
-      position: 'absolute', inset: 0,
-      background: 'radial-gradient(ellipse 55% 45% at 80% 65%, rgba(20,60,140,0.16), transparent 65%)',
-      animation: 'nebula-drift-b 100s ease-in-out infinite',
-    }} />
-    <div style={{
-      position: 'absolute', inset: 0,
-      background: 'radial-gradient(ellipse 40% 35% at 60% 30%, rgba(60,20,100,0.1), transparent 60%)',
-      animation: 'nebula-drift-a 120s ease-in-out infinite reverse',
-    }} />
-  </div>
-)
-
-// ─── TEXT ANIMATIONS ───────────────────────────────────────────────────────────
-
-const textVariants = {
-  hidden:  { opacity: 0, y: 18 },
-  visible: { opacity: 1, y: 0,   transition: { duration: 1.0, ease: [0.16, 1, 0.3, 1] } },
-  exit:    { opacity: 0, y: -10, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
-}
-
-const transmissionVariants = {
-  hidden:  { opacity: 0 },
-  visible: { opacity: 0.45, transition: { duration: 0.5, ease: 'easeOut' } },
-  exit:    { opacity: 0,    transition: { duration: 0.4 } },
-}
-
-const finalItemVariants = {
-  hidden:  { opacity: 0, y: 24 },
-  visible: (delay = 0) => ({
-    opacity: 1, y: 0,
-    transition: { delay, duration: 1.3, ease: [0.16, 1, 0.3, 1] },
-  }),
-}
-
-// ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
+const SolarSystem = () => <><ambientLight intensity={.12} /><StarField /><Nebula /><GalaxyDust /><Sun />{PLANETS.map((planet, index) => <Orbit key={planet.name} radius={planet.radius} index={index} />)}<AsteroidBelt />{PLANETS.map((planet) => <Planet key={planet.name} planet={planet} />)}<CinematicCamera /></>
 
 const IntroSequence = ({ onEnter }) => {
-  const [phase, setPhase]           = useState('black')
-  const [ruptureKey, setRuptureKey] = useState(0)
-  const [titleSpacing, setTitleSpacing] = useState('0.55em')
-
-  // Build phase timeline
-  useEffect(() => {
-    const timers = []
-    const s = PHASES
-
-    // Fire rupture immediately
-    setRuptureKey(k => k + 1)
-
-    const t0 = s.toTransmission
-    timers.push(setTimeout(() => setPhase('transmission'), t0))
-    const t1 = t0 + s.transmissionHold
-    timers.push(setTimeout(() => setPhase('transmission-out'), t1))
-    const t2 = t1 + s.toYear
-    timers.push(setTimeout(() => setPhase('year'), t2))
-    const t3 = t2 + s.yearHold
-    timers.push(setTimeout(() => setPhase('year-out'), t3))
-    const t4 = t3 + s.toEarth
-    timers.push(setTimeout(() => setPhase('earth'), t4))
-    const t5 = t4 + s.earthHold
-    timers.push(setTimeout(() => setPhase('earth-out'), t5))
-    const t6 = t5 + s.toFinal
-    timers.push(setTimeout(() => setPhase('final'), t6))
-
-    return () => timers.forEach(clearTimeout)
-  }, [])
-
-  // Title letter-spacing entrance
-  useEffect(() => {
-    if (phase === 'final') {
-      setTitleSpacing('0.55em')
-      requestAnimationFrame(() => setTitleSpacing('0.20em'))
-    }
-  }, [phase])
-
-  const isTransmission = phase === 'transmission'
-  const isYear         = phase === 'year'
-  const isEarth        = phase === 'earth'
-  const isFinal        = phase === 'final'
-
-  return (
-    <section className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#04050a]">
-      <style>{`
-        @keyframes signal-flicker {
-          0%,100% { opacity:1; }
-          4%  { opacity:0.2; }
-          6%  { opacity:1; }
-          28% { opacity:1; }
-          30% { opacity:0.1; }
-          31% { opacity:0.85; }
-          32% { opacity:0.15; }
-          34% { opacity:1; }
-          61% { opacity:0.4; }
-          62% { opacity:1; }
-          86% { opacity:0.2; }
-          88% { opacity:1; }
-        }
-        @keyframes title-glow-breathe {
-          0%,100% { text-shadow: 0 0 60px rgba(120,80,255,0.4), 0 0 120px rgba(79,124,255,0.15); }
-          50%      { text-shadow: 0 0 90px rgba(140,90,255,0.55), 0 0 180px rgba(79,124,255,0.25); }
-        }
-        @keyframes scan-sweep {
-          0%   { top:-2px; opacity:0; }
-          4%   { opacity:0.6; }
-          96%  { opacity:0.5; }
-          100% { top:100%; opacity:0; }
-        }
-        @keyframes final-glow-ring {
-          0%,100% { opacity:0.3; transform:translate(-50%,-50%) scale(1); }
-          50%      { opacity:0.5; transform:translate(-50%,-50%) scale(1.06); }
-        }
-      `}</style>
-
-      {/* ── Three.js solar system — renders immediately ── */}
-      <div className="pointer-events-none absolute inset-0 z-0">
-        <Canvas
-          camera={{ position: [0, 0, 48], fov: 40 }}
-          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-          dpr={[1, 1.5]}
-        >
-          <color attach="background" args={['#04050a']} />
-          <SolarSystem phase={phase} />
-        </Canvas>
-      </div>
-
-      {/* ── Colorful nebula atmosphere ── */}
-      <NebulaBg />
-
-      {/* ── Space-time rupture on load ── */}
-      <AnimatePresence>
-        {ruptureKey > 0 && <SpaceTimeRupture key={ruptureKey} />}
-      </AnimatePresence>
-
-      {/* ── Scan line ── */}
-      <div
-        className="pointer-events-none absolute inset-x-0 z-[6]"
-        style={{
-          height: '1px',
-          background: 'linear-gradient(90deg,transparent 5%,rgba(130,80,255,0.45) 30%,rgba(255,255,255,0.65) 50%,rgba(130,80,255,0.45) 70%,transparent 95%)',
-          boxShadow: '0 0 12px 3px rgba(120,80,255,0.18)',
-          animation: 'scan-sweep 9s linear infinite',
-        }}
-      />
-
-      {/* ── Vignette to center focus ── */}
-      <div
-        className="pointer-events-none absolute inset-0 z-[3]"
-        style={{ background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, rgba(2,2,8,0.78) 100%)' }}
-      />
-
-      {/* ── Text content ── */}
-      <div className="relative z-10 flex flex-col items-center px-6 text-center">
-        <AnimatePresence mode="wait">
-          {isTransmission && (
-            <motion.p
-              key="transmission"
-              variants={transmissionVariants}
-              initial="hidden" animate="visible" exit="exit"
-              className="text-[10px] font-light tracking-[0.55em] text-white/40 uppercase sm:text-xs"
-            >
-              Transmission Incoming
-            </motion.p>
-          )}
-
-          {isYear && (
-            <motion.div
-              key="year"
-              variants={textVariants}
-              initial="hidden" animate="visible" exit="exit"
-              className="flex flex-col items-center gap-3"
-            >
-              <p
-                className="text-sm font-light tracking-[0.55em] text-white/75 sm:text-base md:text-lg"
-                style={{ animation: 'signal-flicker 3s step-end 1 forwards' }}
-              >
-                YEAR 2178
-              </p>
-            </motion.div>
-          )}
-
-          {isEarth && (
-            <motion.p
-              key="earth"
-              variants={textVariants}
-              initial="hidden" animate="visible" exit="exit"
-              className="max-w-xl text-lg font-light tracking-[0.18em] text-white/70 sm:text-xl md:text-2xl"
-            >
-              EARTH COULD NO LONGER HOLD US.
-            </motion.p>
-          )}
-        </AnimatePresence>
-
-        {/* ── Final reveal ── */}
-        {isFinal && (
-          <div className="flex flex-col items-center">
-            {/* Ambient glow ring behind title */}
-            <div
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[900px] rounded-full"
-              style={{
-                background: 'radial-gradient(ellipse 50% 50% at 50% 50%, rgba(100,60,220,0.22), rgba(79,124,255,0.08) 45%, transparent 72%)',
-                animation: 'final-glow-ring 7s ease-in-out infinite',
-              }}
-            />
-
-            <motion.h1
-              initial="hidden"
-              animate="visible"
-              custom={0}
-              variants={finalItemVariants}
-              className="relative text-6xl font-semibold text-white antialiased sm:text-7xl md:text-9xl"
-              style={{
-                letterSpacing: titleSpacing,
-                transition: 'letter-spacing 2.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                animation: 'title-glow-breathe 6s ease-in-out infinite',
-              }}
-            >
-              NOVA CITY
-            </motion.h1>
-
-            <motion.p
-              initial="hidden"
-              animate="visible"
-              custom={0.85}
-              variants={finalItemVariants}
-              className="mt-7 max-w-md text-sm font-light leading-relaxed tracking-[0.32em] text-white/50 sm:text-base md:text-lg"
-            >
-              THE FIRST HUMAN CIVILIZATION BEYOND EARTH
-            </motion.p>
-
-            {/* ENTER button — lowered for better visual composition */}
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              custom={1.7}
-              variants={finalItemVariants}
-              className="mt-20 md:mt-28"
-            >
-              <EnterButton onClick={onEnter}>ENTER</EnterButton>
-            </motion.div>
-          </div>
-        )}
-      </div>
-    </section>
-  )
+  const [hasScrolled, setHasScrolled] = useState(false)
+  useEffect(() => { let advanced = false; const advance = () => { setHasScrolled(true); if (!advanced) { advanced = true; onEnter?.() } }; const wheel = (event) => { if (Math.abs(event.deltaY) > 2) advance() }; const touch = () => advance(); window.addEventListener('wheel', wheel, { passive: true }); window.addEventListener('touchend', touch, { passive: true }); return () => { window.removeEventListener('wheel', wheel); window.removeEventListener('touchend', touch) } }, [onEnter])
+  return <section className="relative h-[100dvh] w-screen overflow-hidden bg-[#020207]"><Canvas className="absolute inset-0 !h-full !w-full" camera={{ position: [5, 12, 57], fov: 43, near: .1, far: 220 }} gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.35 }} dpr={[1, 1.5]}><color attach="background" args={['#020207']} /><fog attach="fog" args={['#070816', 48, 145]} /><SolarSystem /></Canvas>{!hasScrolled && <div className="intro-scroll-hint pointer-events-none absolute inset-x-0 bottom-7 z-10 flex flex-col items-center gap-1.5" aria-hidden="true"><span>↑</span><p>SCROLL TO EXPLORE</p></div>}</section>
 }
 
 export default IntroSequence

@@ -184,12 +184,12 @@ export const LandmarkBuilding = ({ landmark }) => {
             className="flex flex-col items-center justify-center pointer-events-none"
             style={{ textShadow: `0 0 10px ${landmark.accentColor}` }}
           >
-            <div className="bg-black/80 backdrop-blur-md px-4 py-2 border-l-4" style={{ borderColor: landmark.accentColor }}>
+            <div className="px-4 py-2 text-center">
               <h4 className="text-lg font-bold tracking-[0.2em] uppercase m-0 text-white">
                 {landmark.displayName}
               </h4>
-              <p className="text-xs text-white/60 mt-1 uppercase tracking-widest font-medium">
-                [ PORTFOLIO: {landmark.futureContentType} ]
+              <p className="text-xs text-white/75 mt-1 uppercase tracking-widest font-medium">
+                {isSelected ? 'PORTFOLIO OPEN' : 'CLICK TO EXPLORE'}
               </p>
             </div>
           </div>
