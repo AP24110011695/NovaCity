@@ -12,6 +12,7 @@
   --nova-border-accent: rgba(79, 124, 255, 0.3);
   --nova-ease: cubic-bezier(0.22, 0.68, 0.35, 1);
   --nova-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --nova-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* ── Base reset ───────────────────────────────────────────────────── */
@@ -30,6 +31,7 @@ body {
   font-family: Inter, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* ── Portfolio mode ───────────────────────────────────────────────── */
@@ -47,9 +49,21 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ── Typography scale ─────────────────────────────────────────────── */
+/* Fluid heading so layout never breaks on any viewport */
+h1 {
+  font-size: clamp(2.2rem, 6.5vw, 5.5rem);
+}
+
+h2 {
+  font-size: clamp(1.65rem, 3vw, 2.5rem);
+}
+
+h3 {
+  font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+}
+
 /* ── Section rhythm ───────────────────────────────────────────────── */
-/* Subtle top-gradient separator between sections so they feel like
-   distinct city districts while staying visually connected. */
 #about,
 #skills,
 #projects,
@@ -70,10 +84,102 @@ html {
   height: 1px;
   background: linear-gradient(90deg,
       transparent 0%,
-      rgba(79, 124, 255, 0.12) 30%,
-      rgba(79, 124, 255, 0.12) 70%,
+      rgba(79, 124, 255, 0.1) 30%,
+      rgba(79, 124, 255, 0.1) 70%,
       transparent 100%);
   pointer-events: none;
+}
+
+/* ── Button system ────────────────────────────────────────────────── */
+/* Primary — filled accent */
+.nova-btn-primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(79, 124, 255, 0.9) 0%, rgba(79, 124, 255, 0.75) 100%);
+  border: 1px solid rgba(79, 124, 255, 0.5);
+  color: #fff;
+  box-shadow: 0 0 0 rgba(79, 124, 255, 0);
+  transition:
+    background 320ms var(--nova-ease),
+    border-color 320ms var(--nova-ease),
+    box-shadow 320ms var(--nova-ease),
+    transform 160ms var(--nova-ease-spring);
+}
+
+.nova-btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.14) 48%,
+      rgba(255, 255, 255, 0.22) 50%,
+      rgba(255, 255, 255, 0.14) 52%,
+      transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0s;
+}
+
+.nova-btn-primary:hover {
+  background: linear-gradient(135deg, rgba(107, 147, 255, 0.95) 0%, rgba(79, 124, 255, 0.85) 100%);
+  border-color: rgba(107, 147, 255, 0.7);
+  box-shadow: 0 0 24px rgba(79, 124, 255, 0.45), 0 0 6px rgba(79, 124, 255, 0.3);
+}
+
+.nova-btn-primary:hover::before {
+  transform: translateX(120%);
+  transition: transform 640ms var(--nova-ease-out);
+}
+
+.nova-btn-primary:active {
+  transform: scale(0.975);
+  box-shadow: 0 0 12px rgba(79, 124, 255, 0.3);
+}
+
+/* Secondary — outlined */
+.nova-btn-secondary {
+  background: rgba(79, 124, 255, 0.07);
+  border: 1px solid rgba(79, 124, 255, 0.28);
+  color: rgba(255, 255, 255, 0.85);
+  transition:
+    background 280ms var(--nova-ease),
+    border-color 280ms var(--nova-ease),
+    color 280ms var(--nova-ease),
+    box-shadow 280ms var(--nova-ease),
+    transform 160ms var(--nova-ease-spring);
+}
+
+.nova-btn-secondary:hover {
+  background: rgba(79, 124, 255, 0.14);
+  border-color: rgba(107, 147, 255, 0.55);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(79, 124, 255, 0.2);
+}
+
+.nova-btn-secondary:active {
+  transform: scale(0.975);
+}
+
+/* Ghost — minimal */
+.nova-btn-ghost {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.65);
+  transition:
+    background 280ms var(--nova-ease),
+    border-color 280ms var(--nova-ease),
+    color 280ms var(--nova-ease),
+    transform 160ms var(--nova-ease-spring);
+}
+
+.nova-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.nova-btn-ghost:active {
+  transform: scale(0.975);
 }
 
 /* ── Selection ────────────────────────────────────────────────────── */
@@ -84,7 +190,7 @@ html {
 
 /* ── Scrollbar (WebKit) ───────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -92,18 +198,55 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 124, 255, 0.25);
+  background: rgba(79, 124, 255, 0.22);
   border-radius: 3px;
+  transition: background 200ms;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 124, 255, 0.45);
+  background: rgba(79, 124, 255, 0.42);
 }
 
 /* ── Focus ring ───────────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid rgba(79, 124, 255, 0.6);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ── Hero keyframes ───────────────────────────────────────────────── */
+@keyframes hero-scan {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+
+  5% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 0.7;
+  }
+
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes hero-scroll-pulse {
+
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scaleY(0.8);
+  }
+
+  50% {
+    opacity: 0.7;
+    transform: scaleY(1);
+  }
 }
 
 /* ── Reduced-motion ───────────────────────────────────────────────── */
@@ -114,5 +257,18 @@ html {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Mobile section padding ───────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  #about,
+  #skills,
+  #projects,
+  #experience,
+  #contact {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
   }
 }

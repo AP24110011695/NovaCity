@@ -8,43 +8,43 @@ const NOVA_EASE = [0.22, 0.68, 0.35, 1]
 function TimelineItem({ item, index, isLast }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: -24 }}
+      initial={{ opacity: 0, x: -20 }}
       whileInView={{ opacity: 1, x: 0 }}
       viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.65, delay: 0.1 + index * 0.12, ease: NOVA_EASE }}
-      className="group relative pl-10 md:pl-14"
+      transition={{ duration: 0.62, delay: 0.1 + index * 0.12, ease: NOVA_EASE }}
+      className="group relative pl-9 md:pl-14"
     >
       {/* Timeline dot */}
       <span
-        className="absolute left-0 top-7 flex h-[22px] w-[22px] -translate-y-1/2 items-center justify-center rounded-full border border-[#4F7CFF]/50 bg-[rgba(8,10,16,0.9)]"
-        style={{ boxShadow: '0 0 12px rgba(79,124,255,0.3)' }}
+        className="absolute left-0 top-7 flex h-[20px] w-[20px] -translate-y-1/2 items-center justify-center rounded-full border border-[#4F7CFF]/45 bg-[rgba(8,10,16,0.92)]"
+        style={{ boxShadow: '0 0 10px rgba(79,124,255,0.28)' }}
       >
-        <span className="h-2 w-2 rounded-full bg-[#6B93FF]" />
+        <span className="h-[7px] w-[7px] rounded-full bg-[#6B93FF]" />
       </span>
 
       {/* Connector line */}
       {!isLast && (
         <div
-          className="absolute left-[10px] top-7 w-px"
+          className="absolute left-[9px] top-7 w-px"
           style={{
-            height: 'calc(100% + 24px)',
+            height: 'calc(100% + 20px)',
             background:
-              'linear-gradient(to bottom, rgba(79,124,255,0.35), rgba(79,124,255,0.08))',
+              'linear-gradient(to bottom, rgba(79,124,255,0.32), rgba(79,124,255,0.06))',
           }}
         />
       )}
 
       {/* Card */}
-      <div className="relative mb-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgba(8,10,16,0.45)] p-6 backdrop-blur-md transition-colors duration-300 group-hover:border-[#4F7CFF]/30 md:p-7">
+      <div className="relative mb-5 overflow-hidden rounded-2xl border border-white/[0.07] bg-[rgba(8,10,16,0.45)] p-5 backdrop-blur-md transition-all duration-320 group-hover:border-[#4F7CFF]/28 group-hover:shadow-[0_4px_28px_rgba(79,124,255,0.1)] md:p-7">
         {/* Hover glow */}
         <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-          <div className="absolute -left-8 -top-8 h-32 w-32 rounded-full bg-[#4F7CFF]/[0.07] blur-3xl" />
+          <div className="absolute -left-8 -top-8 h-32 w-32 rounded-full bg-[#4F7CFF]/[0.065] blur-3xl" />
         </div>
 
         {/* Header */}
         <div className="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
           <div>
-            <h3 className="text-lg font-bold leading-snug text-white md:text-xl">
+            <h3 className="text-[16px] font-bold leading-snug text-white md:text-[18px]">
               {item.title}
             </h3>
             <p className="mt-0.5 text-[13px] font-medium text-[#6B93FF]">
@@ -53,24 +53,24 @@ function TimelineItem({ item, index, isLast }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 md:flex-col md:items-end">
-            <span className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 font-mono text-[11px] text-gray-400">
+            <span className="rounded-md border border-white/[0.09] bg-white/[0.03] px-3 py-1 font-mono text-[11px] text-gray-400">
               {item.year}
             </span>
           </div>
         </div>
 
         {/* Divider */}
-        <div className="my-4 h-px w-full bg-white/[0.06]" />
+        <div className="my-4 h-px w-full bg-white/[0.055]" />
 
         {/* Description */}
-        <p className="text-[14px] leading-7 text-gray-400">{item.desc}</p>
+        <p className="text-[13.5px] leading-[1.75] text-gray-400">{item.desc}</p>
 
         {/* Bottom scan-line on hover */}
         <div
-          className="pointer-events-none absolute bottom-0 left-0 right-0 h-px opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          className="pointer-events-none absolute bottom-0 left-0 right-0 h-px opacity-0 transition-opacity duration-320 group-hover:opacity-100"
           style={{
             background:
-              'linear-gradient(90deg, transparent, rgba(79,124,255,0.5), transparent)',
+              'linear-gradient(90deg, transparent, rgba(79,124,255,0.45), transparent)',
           }}
         />
       </div>
@@ -84,13 +84,13 @@ export default function Experience() {
     target: sectionRef,
     offset: ['start end', 'end start'],
   })
-  const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '14%'])
+  const bgY = useTransform(scrollYProgress, [0, 1], ['0%', '12%'])
 
   return (
     <section
       id="experience"
       ref={sectionRef}
-      className="relative overflow-hidden px-6 py-28 text-white"
+      className="relative overflow-hidden px-5 py-24 text-white sm:px-6 sm:py-28"
     >
       {/* ── Atmospheric background ── */}
       <motion.div
@@ -98,16 +98,14 @@ export default function Experience() {
         className="pointer-events-none absolute inset-0 -z-10"
         aria-hidden
       >
-        {/* Vertical grid — suggests city elevation drawings */}
         <div
-          className="absolute inset-0 opacity-[0.025]"
+          className="absolute inset-0 opacity-[0.022]"
           style={{
             backgroundImage: 'linear-gradient(90deg, rgba(79,124,255,0.7) 1px, transparent 1px)',
             backgroundSize: '120px 100%',
           }}
         />
-        {/* Right-side glow */}
-        <div className="absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#4F7CFF]/[0.04] blur-[100px]" />
+        <div className="absolute -right-32 top-1/2 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-[#4F7CFF]/[0.038] blur-[100px]" />
       </motion.div>
 
       <div className="mx-auto max-w-4xl">
@@ -123,7 +121,7 @@ export default function Experience() {
           Nova City · Career District
         </motion.p>
 
-        <div className="relative mt-14">
+        <div className="relative mt-12">
           {experience.map((item, index) => (
             <TimelineItem
               key={item.title}

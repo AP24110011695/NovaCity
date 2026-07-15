@@ -1,0 +1,38 @@
+export const planetsData = {
+  'nova-prime': {
+    id: 'nova-prime',
+    name: 'Nova Prime',
+    distance: '149.6M km',
+    radius: '6,371 km',
+    gravity: '9.8 m/s²',
+    moons: 2,
+    atmosphere: '78% N₂, 21% O₂',
+    funFact: 'Home to the capital city of Nova and advanced orbital infrastructure.',
+    cameraTarget: { x: 3.0, y: -0.1, z: -6.0 },
+    cameraOffset: { x: 0, y: 0, z: 4.5 },
+  },
+  'obsidian': {
+    id: 'obsidian',
+    name: 'Obsidian',
+    distance: '227.9M km',
+    radius: '3,389 km',
+    gravity: '3.7 m/s²',
+    moons: 0,
+    atmosphere: '95% CO₂, 3% N₂',
+    funFact: 'A barren, resource-rich world often used for deep mining operations.',
+    cameraTarget: { x: 0, y: 0, z: 0 }, 
+    cameraOffset: { x: 0, y: 0, z: 2.0 },
+  },
+  'celestia': {
+    id: 'celestia',
+    name: 'Celestia',
+    distance: '778.5M km',
+    radius: '69,911 km',
+    gravity: '24.7 m/s²',
+    moons: 79,
+    atmosphere: '89% H₂, 10% He',
+    funFact: 'A gas giant with violent storms, acting as a massive shield for inner planets.',
+    cameraTarget: { x: 0, y: 0, z: 0 },
+    cameraOffset: { x: 0, y: 0, z: 3.5 },
+  }
+}
