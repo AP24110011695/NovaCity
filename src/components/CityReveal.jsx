@@ -2,6 +2,11 @@ import { useMemo, useRef, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import LivingCity from './city/LivingCity'
+import { HeroBuilding } from './city/HeroBuilding'
+import { LandingCamera } from './city/LandingCamera'
+import { GroundFog, VolumetricRays, DriftingDust } from './city/AtmosphericEffects'
+import { AircraftSilhouettes } from './city/AircraftSilhouettes'
+import gsap from 'gsap'
 
 // ─── Deterministic seed-based RNG (no Math.random in render) ─────────────────
 function mulberry32(seed) {
@@ -235,46 +240,21 @@ const SkyGlow = () => {
 const SceneFog = () => {
   const { scene } = useThree()
   useEffect(() => {
-    scene.fog = new THREE.FogExp2('#060810', 0.016)
+    scene.fog = new THREE.FogExp2('#060810', 0.06) // Start thick
+    
+    gsap.to(scene.fog, {
+      density: 0.016, // Clear up over time
+      duration: 12,
+      ease: "power2.out"
+    })
+
     return () => { scene.fog = null }
   }, [scene])
   return null
 }
 
-// ─── Cinematic fly-through camera ─────────────────────────────────────────────
-const FlyThroughCamera = () => {
-  const curve = useMemo(() => new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0,    5.5,  16),
-    new THREE.Vector3(9,    7.0,  -2),
-    new THREE.Vector3(5,    8.5, -20),
-    new THREE.Vector3(-8,   6.5, -40),
-    new THREE.Vector3(-3,   7.5, -60),
-    new THREE.Vector3(7,    6.0, -44),
-    new THREE.Vector3(11,   5.5, -18),
-    new THREE.Vector3(0,    5.5,  16),
-  ], true, 'catmullrom', 0.5), [])
-
-  const CYCLE = 80
-
-  useFrame(({ clock, camera }) => {
-    const t   = clock.getElapsedTime()
-    const p   = (t % CYCLE) / CYCLE
-    const pAhead = (p + 0.018) % 1
-
-    const pos     = curve.getPointAt(p)
-    const lookAt  = curve.getPointAt(pAhead)
-
-    // Handheld micro-jitter
-    const hx = Math.sin(t * 1.9) * 0.045 + Math.sin(t * 4.3 + 1.0) * 0.018
-    const hy = Math.cos(t * 1.5) * 0.036 + Math.sin(t * 3.7 + 0.6) * 0.013
-
-    camera.position.set(pos.x + hx, pos.y + hy, pos.z)
-    camera.lookAt(lookAt.x, lookAt.y - 0.8, lookAt.z)
-    camera.rotation.z = Math.sin(t * 0.35) * 0.005
-  })
-
-  return null
-}
+// ─── Cinematic landing camera ─────────────────────────────────────────────────
+// (Replaced FlyThroughCamera with LandingCamera imported above)
 
 // ─── Flying vehicles — light streaks across mid-city ─────────────────────────
 const FlyingVehicles = () => {
@@ -320,10 +300,10 @@ const FlyingVehicles = () => {
 }
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
-const SceneContent = () => (
+const SceneContent = ({ onLanded }) => (
   <>
     <SceneFog />
-    <FlyThroughCamera />
+    <LandingCamera onLanded={onLanded} />
 
     {/* Directional key light from upper right — cold blue */}
     <directionalLight
@@ -342,6 +322,9 @@ const SceneContent = () => (
     <BuildingMeshes buildings={CITY_DATA} />
     <RooftopSpires  buildings={CITY_DATA} />
 
+    {/* Central Landmark */}
+    <HeroBuilding position={[0, 0, -25]} />
+
     {/* Animated city life — LivingCity from the city/ system */}
     <LivingCity
       buildingData={CITY_DATA}
@@ -352,6 +335,12 @@ const SceneContent = () => (
     />
 
     <FlyingVehicles />
+    <AircraftSilhouettes />
+
+    {/* Atmospheric Elements */}
+    <GroundFog />
+    <VolumetricRays />
+    <DriftingDust />
   </>
 )
 
@@ -369,8 +358,15 @@ const CityReveal = () => {
         gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1 }}
         dpr={[1, 1.5]}
         className="absolute inset-0"
+        onCreated={({ gl }) => {
+           // Exposure adaptation
+           gsap.fromTo(gl, 
+             { toneMappingExposure: 4.0 }, 
+             { toneMappingExposure: 1.1, duration: 8, ease: "power2.out" }
+           )
+        }}
       >
-        <SceneContent />
+        <SceneContent onLanded={() => {}} />
       </Canvas>
 
       {/* Subtle vignette */}
