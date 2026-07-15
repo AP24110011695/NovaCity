@@ -31,7 +31,7 @@ const PHASE_S = {
 }
 
 // ─── Planet surface — what the camera dives toward ────────────────────────────
-const PlanetSurface = ({ progressRef }) => {
+export const PlanetSurface = ({ progressRef }) => {
   const meshRef  = useRef()
   const glowRef  = useRef()
   const craterRef = useRef()
@@ -148,7 +148,7 @@ const PlanetSurface = ({ progressRef }) => {
 }
 
 // ─── Volumetric Cloud Bank ────────────────────────────────────────────────────
-const CloudBank = ({ progressRef }) => {
+export const CloudBank = ({ progressRef }) => {
   const groupRef = useRef()
   const materials = useRef([])
 
@@ -254,7 +254,7 @@ const CloudBank = ({ progressRef }) => {
 }
 
 // ─── Speed Streaks — motion blur illusion ────────────────────────────────────
-const SpeedStreaks = ({ progressRef }) => {
+export const SpeedStreaks = ({ progressRef }) => {
   const meshRef = useRef()
   const COUNT = 80
 
@@ -327,7 +327,7 @@ const SpeedStreaks = ({ progressRef }) => {
 }
 
 // ─── Atmospheric Particles — ember glow near impact ──────────────────────────
-const ImpactDebris = ({ progressRef }) => {
+export const ImpactDebris = ({ progressRef }) => {
   const COUNT = 200
   const meshRef = useRef()
   const matRef  = useRef()
@@ -393,7 +393,7 @@ const ImpactDebris = ({ progressRef }) => {
 }
 
 // ─── Shockwave Ring ───────────────────────────────────────────────────────────
-const ShockwaveRing = ({ progressRef }) => {
+export const ShockwaveRing = ({ progressRef }) => {
   const matRef = useRef()
 
   useFrame(() => {
@@ -534,7 +534,7 @@ const DescentStars = ({ progressRef }) => {
 }
 
 // ─── Atmospheric scattering tint overlay (CSS layer) ─────────────────────────
-const ScatteringOverlay = ({ progress }) => {
+export const ScatteringOverlay = ({ progress }) => {
   // Blue-orange-white: space → re-entry plasma → clouds → city glow
   const opacity    = Math.max(0, Math.min(1, (progress - 0.12) / 0.25))
   const isEntryHeat = progress > 0.22 && progress < 0.42

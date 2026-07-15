@@ -136,15 +136,7 @@ const SceneManager = () => {
 
   const handleEnterMission = useCallback(() => {
 
-    setIsFadingOut(true)
-
-    setTimeout(() => {
-
-      setScene(SCENES.ATMOSPHERE)
-
-      setIsFadingOut(false)
-
-    }, MISSION_FADE_DURATION)
+    setScene(SCENES.CITY)
 
   }, [])
 
@@ -419,6 +411,10 @@ const SceneManager = () => {
           </motion.div>
 
         )}
+
+
+
+        {/* ATMOSPHERE scene is now bypassed as SpaceScene handles the seamless descent directly */}
 
       </AnimatePresence>
 

@@ -5,6 +5,7 @@ import gsap from 'gsap'
 import Planet from './Planet'
 import PlanetScanner from './PlanetScanner'
 import PlanetInfoPanel from './PlanetInfoPanel'
+import { TransitionWebGL, TransitionHTML } from './transitions/TransitionManager'
 
 const LOOP_DURATION = 38
 const HUD_DELAY_MS  = 22000
@@ -587,7 +588,7 @@ const Timeline = ({ planetRef, eventsRef, transitionRef }) => {
 // ------------------------------------------------------------------
 // SceneContent
 // ------------------------------------------------------------------
-const SceneContent = ({ selectedPlanet, onPlanetSelect }) => {
+const SceneContent = ({ selectedPlanet, onPlanetSelect, descentActive, onDescentProgress, onDescentComplete }) => {
   const planetRef = useRef()
   const eventsRef = useRef({ debris: 0, meteor: 0, shock: 0, city: 0 })
   const { camera } = useThree()
@@ -637,7 +638,8 @@ const SceneContent = ({ selectedPlanet, onPlanetSelect }) => {
       <DebrisField intensityRef={eventsRef} />
       <MeteorStreak intensityRef={eventsRef} />
       <ShockwaveRing intensityRef={eventsRef} />
-      <Timeline planetRef={planetRef} eventsRef={eventsRef} transitionRef={transitionRef} />
+      {!descentActive && <Timeline planetRef={planetRef} eventsRef={eventsRef} transitionRef={transitionRef} />}
+      <TransitionWebGL active={descentActive} targetPlanet={selectedPlanet} onComplete={onDescentComplete} onProgress={onDescentProgress} />
     </>
   )
 }
@@ -648,6 +650,8 @@ const SceneContent = ({ selectedPlanet, onPlanetSelect }) => {
 const SpaceScene = ({ onEnterMission }) => {
   const [showHud, setShowHud] = useState(false)
   const [selectedPlanet, setSelectedPlanet] = useState(null)
+  const [descentActive, setDescentActive] = useState(false)
+  const [descentProgress, setDescentProgress] = useState(0)
 
   useEffect(() => {
     const hudTimeout = setTimeout(() => setShowHud(true), HUD_DELAY_MS)
@@ -684,7 +688,19 @@ const SpaceScene = ({ onEnterMission }) => {
         className="absolute inset-0"
       >
         <color attach="background" args={['#020305']} />
-        <SceneContent selectedPlanet={selectedPlanet} onPlanetSelect={setSelectedPlanet} />
+        <SceneContent 
+           selectedPlanet={selectedPlanet} 
+           onPlanetSelect={(data) => {
+              if (selectedPlanet?.data?.id === data?.data?.id) {
+                 setDescentActive(true) // trigger descent on second click
+              } else {
+                 setSelectedPlanet(data)
+              }
+           }} 
+           descentActive={descentActive}
+           onDescentProgress={setDescentProgress}
+           onDescentComplete={onEnterMission}
+        />
       </Canvas>
 
       {/* Blur background overlay when planet selected */}
@@ -717,19 +733,31 @@ const SpaceScene = ({ onEnterMission }) => {
         className="pointer-events-none absolute inset-0"
         style={{
           background: 'radial-gradient(ellipse at center, transparent 26%, rgba(0,0,0,0.92) 100%)',
+          opacity: descentActive ? 0 : 1,
+          transition: 'opacity 2s ease'
         }}
       />
 
-      <PlanetInfoPanel planet={selectedPlanet?.data} onClose={() => setSelectedPlanet(null)} />
+      <div style={{ opacity: descentActive ? 0 : 1, transition: 'opacity 1s ease', pointerEvents: descentActive ? 'none' : 'auto' }}>
+         <PlanetInfoPanel planet={selectedPlanet?.data} onClose={() => setSelectedPlanet(null)} />
+      </div>
 
-      {showHud && !selectedPlanet && (
+      {showHud && !selectedPlanet && !descentActive && (
         <div
           className="absolute inset-0 z-[5]"
           style={{ animation: 'hud-fade-in 1.6s ease-out forwards' }}
         >
-          <PlanetScanner onEnterMission={onEnterMission} />
+          <PlanetScanner onEnterMission={() => {
+             // If a planet is already selected, just descend. Otherwise default to Nova Prime
+             if (!selectedPlanet) {
+                setSelectedPlanet({ data: { id: 'nova-prime', cameraTarget: {x:3,y:-0.1,z:-6} } })
+             }
+             setDescentActive(true)
+          }} />
         </div>
       )}
+
+      <TransitionHTML active={descentActive} progress={descentProgress} />
     </div>
   )
 }
