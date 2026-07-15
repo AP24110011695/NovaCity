@@ -44,8 +44,8 @@ export const HeroBuilding = ({ position = [0, 0, -20] }) => {
          <boxGeometry args={[10.2, 55, 10.2]} />
          <shaderMaterial
             ref={stripsRef}
-            vertexShader={\`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}\`}
-            fragmentShader={\`
+            vertexShader={`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`}
+            fragmentShader={`
                uniform float uTime;
                varying vec2 vUv;
                void main(){
@@ -59,7 +59,7 @@ export const HeroBuilding = ({ position = [0, 0, -20] }) => {
                   float fade = smoothstep(0.0, 0.1, vUv.y) * smoothstep(1.0, 0.9, vUv.y);
                   gl_FragColor = vec4(color, clamp((stripes * edges) * fade, 0.0, 1.0));
                }
-            \`}
+            `}
             uniforms={{ uTime: { value: 0 } }}
             transparent
             blending={THREE.AdditiveBlending}

@@ -161,7 +161,7 @@ export const TransitionHTML = ({ active, progress }) => {
         style={{
           backdropFilter: 'url(#novaDescent) blur(0.3px)',
           WebkitBackdropFilter: 'blur(0.3px)',
-          animation: \`heat-warp \${totalMs}ms ease-in-out forwards\`,
+          animation: `heat-warp ${totalMs}ms ease-in-out forwards`,
         }}
       />
 
@@ -170,14 +170,14 @@ export const TransitionHTML = ({ active, progress }) => {
         className="pointer-events-none absolute inset-0 z-[12]"
         style={{
           background: 'radial-gradient(ellipse 80% 60% at 50% 70%, rgba(79,124,255,0.6), rgba(20,40,120,0.3) 50%, transparent 75%)',
-          animation: \`city-glow-rise \${totalMs}ms ease-in-out forwards\`,
+          animation: `city-glow-rise ${totalMs}ms ease-in-out forwards`,
         }}
       />
 
       {/* Ambient brightness rise */}
       <div
         className="pointer-events-none absolute inset-0 z-[13] bg-[#c8d4ff]"
-        style={{ animation: \`atm-brightness \${totalMs}ms ease-in forwards\`, mixBlendMode: 'screen' }}
+        style={{ animation: `atm-brightness ${totalMs}ms ease-in forwards`, mixBlendMode: 'screen' }}
       />
 
       {/* Edge vignette */}
@@ -192,7 +192,7 @@ export const TransitionHTML = ({ active, progress }) => {
       {/* Final white-out exit flash */}
       <div
         className="pointer-events-none absolute inset-0 z-[20] bg-white"
-        style={{ animation: \`atm-exit-flash \${totalMs}ms linear forwards\` }}
+        style={{ animation: `atm-exit-flash ${totalMs}ms linear forwards` }}
       />
     </>
   )

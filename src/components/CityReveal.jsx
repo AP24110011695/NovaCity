@@ -19,146 +19,6 @@ function mulberry32(seed) {
 }
 
 // ─── Procedural city layout — fully deterministic, never jumps on re-render ──
-function generateCityLayout(seed = 42) {
-  const rng = mulberry32(seed)
-  const buildings = []
-
-  // ── District 1: Downtown core — very tall, dense ─────────────────────────
-  for (let i = 0; i < 18; i++) {
-    const angle  = (i / 18) * Math.PI * 2 + rng() * 0.35
-    const radius = 8 + rng() * 14
-    buildings.push({
-      x: Math.cos(angle) * radius + (rng() - 0.5) * 6,
-      y: 0,
-      z: -18 + Math.sin(angle) * radius * 0.8 + (rng() - 0.5) * 4,
-      w: 3 + rng() * 5,
-      h: 28 + rng() * 52,
-      d: 3 + rng() * 5,
-    })
-  }
-
-  // ── District 2: Mid-ring — varied heights ─────────────────────────────────
-  for (let i = 0; i < 28; i++) {
-    const col = i % 7
-    const row = Math.floor(i / 7)
-    const jx  = (rng() - 0.5) * 4
-    const jz  = (rng() - 0.5) * 4
-    buildings.push({
-      x: (col - 3) * 10 + jx,
-      y: 0,
-      z: -34 - row * 11 + jz,
-      w: 2.5 + rng() * 4,
-      h: 10 + rng() * 30,
-      d: 2.5 + rng() * 4,
-    })
-  }
-
-  // ── District 3: Outer sprawl — low, wide ─────────────────────────────────
-  for (let i = 0; i < 24; i++) {
-    const angle  = (i / 24) * Math.PI * 2
-    const radius = 36 + rng() * 22
-    buildings.push({
-      x: Math.cos(angle) * radius + (rng() - 0.5) * 8,
-      y: 0,
-      z: -30 + Math.sin(angle) * radius * 0.65 + (rng() - 0.5) * 8,
-      w: 4 + rng() * 8,
-      h: 4 + rng() * 14,
-      d: 4 + rng() * 8,
-    })
-  }
-
-  // ── District 4: Background silhouette towers ──────────────────────────────
-  for (let i = 0; i < 14; i++) {
-    buildings.push({
-      x: (rng() - 0.5) * 120,
-      y: 0,
-      z: -65 - rng() * 35,
-      w: 2 + rng() * 3,
-      h: 22 + rng() * 40,
-      d: 2 + rng() * 3,
-    })
-  }
-
-  return buildings
-}
-
-const CITY_DATA = generateCityLayout(137)  // fixed seed → never jumps
-
-// ─── Building meshes — instanced, colours baked from building data ───────────
-const BuildingMeshes = ({ buildings }) => {
-  const meshRef = useRef()
-
-  useEffect(() => {
-    if (!meshRef.current || !buildings.length) return
-    const dummy = new THREE.Object3D()
-
-    buildings.forEach((b, i) => {
-      dummy.position.set(b.x, b.y + b.h * 0.5, b.z)
-      dummy.scale.set(b.w, b.h, b.d)
-      dummy.updateMatrix()
-      meshRef.current.setMatrixAt(i, dummy.matrix)
-
-      // Colour: darker = more distant, slight blue-grey tint
-      const depth = Math.max(0, Math.min(1, (-b.z - 10) / 80))
-      const base  = 0.025 + depth * 0.01
-      meshRef.current.setColorAt(i, new THREE.Color(
-        base * 0.85,
-        base * 0.92,
-        base * 1.20,
-      ))
-    })
-
-    meshRef.current.instanceMatrix.needsUpdate = true
-    if (meshRef.current.instanceColor) {
-      meshRef.current.instanceColor.needsUpdate = true
-    }
-  }, [buildings])
-
-  return (
-    <instancedMesh ref={meshRef} args={[null, null, buildings.length]} castShadow receiveShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial roughness={0.92} metalness={0.08} envMapIntensity={0.3} />
-    </instancedMesh>
-  )
-}
-
-// ─── Rooftop detail: antenna spires ──────────────────────────────────────────
-const RooftopSpires = ({ buildings }) => {
-  const rng   = useMemo(() => mulberry32(99), [])
-  const spires = useMemo(() => {
-    return buildings
-      .filter(b => b.h > 25 && rng() > 0.45)
-      .slice(0, 24)
-      .map(b => ({
-        x: b.x + (rng() - 0.5) * b.w * 0.4,
-        y: b.y + b.h,
-        z: b.z + (rng() - 0.5) * b.d * 0.4,
-        h: 2 + rng() * 6,
-      }))
-  }, [buildings, rng])
-
-  const meshRef = useRef()
-
-  useEffect(() => {
-    if (!meshRef.current || !spires.length) return
-    const dummy = new THREE.Object3D()
-    spires.forEach((s, i) => {
-      dummy.position.set(s.x, s.y + s.h * 0.5, s.z)
-      dummy.scale.set(0.18, s.h, 0.18)
-      dummy.updateMatrix()
-      meshRef.current.setMatrixAt(i, dummy.matrix)
-    })
-    meshRef.current.instanceMatrix.needsUpdate = true
-  }, [spires])
-
-  return (
-    <instancedMesh ref={meshRef} args={[null, null, Math.max(1, spires.length)]}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#1a1e2a" roughness={0.7} metalness={0.6} />
-    </instancedMesh>
-  )
-}
-
 // ─── Ground plane with fog falloff ───────────────────────────────────────────
 const Ground = () => {
   const matRef = useRef()
@@ -318,21 +178,11 @@ const SceneContent = ({ onLanded }) => (
     <SkyGlow />
     <Ground />
 
-    {/* Static building geometry */}
-    <BuildingMeshes buildings={CITY_DATA} />
-    <RooftopSpires  buildings={CITY_DATA} />
-
     {/* Central Landmark */}
     <HeroBuilding position={[0, 0, -25]} />
 
     {/* Animated city life — LivingCity from the city/ system */}
-    <LivingCity
-      buildingData={CITY_DATA}
-      fogGroundY={0}
-      fogRadius={180}
-      fogDensity={0.22}
-      particleAlpha={0.18}
-    />
+    <LivingCity />
 
     <FlyingVehicles />
     <AircraftSilhouettes />
