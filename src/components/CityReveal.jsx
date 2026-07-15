@@ -8,6 +8,7 @@ import { GroundFog, VolumetricRays, DriftingDust } from './city/AtmosphericEffec
 import { AircraftSilhouettes } from './city/AircraftSilhouettes'
 import { SelectionProvider } from './city/SelectionManager'
 import { BuildingProvider } from './city/BuildingManager'
+import HoloController from './holo/HoloController'
 import gsap from 'gsap'
 
 // ─── Deterministic seed-based RNG (no Math.random in render) ─────────────────
@@ -163,9 +164,8 @@ const FlyingVehicles = () => {
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
 const SceneContent = ({ onLanded }) => (
-  <BuildingProvider>
-    <SelectionProvider>
-      <SceneFog />
+  <SelectionProvider>
+    <SceneFog />
     <LandingCamera onLanded={onLanded} />
 
     {/* Directional key light from upper right — cold blue */}
@@ -192,16 +192,16 @@ const SceneContent = ({ onLanded }) => (
 
     {/* Atmospheric Elements */}
     <GroundFog />
-      <VolumetricRays />
-      <DriftingDust />
-    </SelectionProvider>
-  </BuildingProvider>
+    <VolumetricRays />
+    <DriftingDust />
+  </SelectionProvider>
 )
 
 // ─── CityReveal ───────────────────────────────────────────────────────────────
 const CityReveal = () => {
   return (
-    <div className="relative h-screen w-full overflow-hidden bg-[#060810]">
+    <BuildingProvider>
+      <div className="relative h-screen w-full overflow-hidden bg-[#060810]">
       <style>{`
         @keyframes city-unfade { 0%{opacity:1} 100%{opacity:0} }
         @keyframes city-ui-in  { 0%{opacity:0;transform:translateY(16px)} 100%{opacity:1;transform:translateY(0)} }
@@ -222,6 +222,9 @@ const CityReveal = () => {
       >
         <SceneContent onLanded={() => {}} />
       </Canvas>
+
+      {/* Holographic Portfolio Window — DOM overlay, reads BuildingManager context */}
+      <HoloController />
 
       {/* Subtle vignette */}
       <div
@@ -249,7 +252,8 @@ const CityReveal = () => {
         className="pointer-events-none absolute inset-0 bg-white"
         style={{ animation: 'city-unfade 1.4s ease-out forwards' }}
       />
-    </div>
+      </div>
+    </BuildingProvider>
   )
 }
 
