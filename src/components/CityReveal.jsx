@@ -6,6 +6,7 @@ import { HeroBuilding } from './city/HeroBuilding'
 import { LandingCamera } from './city/LandingCamera'
 import { GroundFog, VolumetricRays, DriftingDust } from './city/AtmosphericEffects'
 import { AircraftSilhouettes } from './city/AircraftSilhouettes'
+import { SelectionProvider } from './city/SelectionManager'
 import gsap from 'gsap'
 
 // ─── Deterministic seed-based RNG (no Math.random in render) ─────────────────
@@ -161,7 +162,7 @@ const FlyingVehicles = () => {
 
 // ─── Scene root ───────────────────────────────────────────────────────────────
 const SceneContent = ({ onLanded }) => (
-  <>
+  <SelectionProvider>
     <SceneFog />
     <LandingCamera onLanded={onLanded} />
 
@@ -191,7 +192,7 @@ const SceneContent = ({ onLanded }) => (
     <GroundFog />
     <VolumetricRays />
     <DriftingDust />
-  </>
+  </SelectionProvider>
 )
 
 // ─── CityReveal ───────────────────────────────────────────────────────────────

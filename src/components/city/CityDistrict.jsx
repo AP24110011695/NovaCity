@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { generateDistrict } from './BuildingGenerator'
 
-export const CityDistrict = ({ seed = 42, center = {x: 0, z: 0}, radius = 100, count = 150 }) => {
+export const CityDistrict = ({ seed = 42, center = {x: 0, z: 0}, radius = 100, count = 150, hovered = false, selected = false, color = '#ff2a5f' }) => {
   const buildings = useMemo(() => generateDistrict(seed, center, radius, count), [seed, center, radius, count])
   
   const meshRef = useRef()
@@ -69,9 +69,17 @@ export const CityDistrict = ({ seed = 42, center = {x: 0, z: 0}, radius = 100, c
   const buildingMatRef = useRef()
   const neonMatRef = useRef()
 
+  const glowColor = useMemo(() => new THREE.Color(color), [color])
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime()
-    if (buildingMatRef.current) buildingMatRef.current.uniforms.uTime.value = t
+    if (buildingMatRef.current) {
+      buildingMatRef.current.uniforms.uTime.value = t
+      // Animate hover transition smoothly using lerp could be done, but simple threshold works for now
+      // Actually we'll just set it
+      const targetIntensity = selected ? 1.0 : (hovered ? 0.6 : 0.0)
+      buildingMatRef.current.uniforms.uHover.value = THREE.MathUtils.lerp(buildingMatRef.current.uniforms.uHover.value, targetIntensity, 0.1)
+    }
     if (neonMatRef.current) neonMatRef.current.uniforms.uTime.value = t
   })
 
@@ -85,6 +93,8 @@ export const CityDistrict = ({ seed = 42, center = {x: 0, z: 0}, radius = 100, c
           metalness={0.5}
           onBeforeCompile={(shader) => {
             shader.uniforms.uTime = { value: 0 }
+            shader.uniforms.uHover = { value: 0 }
+            shader.uniforms.uGlowColor = { value: glowColor }
             buildingMatRef.current = shader
             
             shader.vertexShader = `
@@ -106,6 +116,8 @@ export const CityDistrict = ({ seed = 42, center = {x: 0, z: 0}, radius = 100, c
             
             shader.fragmentShader = `
               uniform float uTime;
+              uniform float uHover;
+              uniform vec3 uGlowColor;
               varying vec3 vWorldPos;
               varying vec2 vMyUv;
               
@@ -125,7 +137,9 @@ export const CityDistrict = ({ seed = 42, center = {x: 0, z: 0}, radius = 100, c
               
               float flicker = 0.8 + 0.2 * sin(uTime * 2.0 + hash(id)*10.0);
               
-              vec3 windowColor = vec3(0.5, 0.7, 1.0) * windowShape * windowActive * flicker * 2.0;
+              vec3 baseWindowColor = vec3(0.5, 0.7, 1.0);
+              vec3 enhancedWindowColor = mix(baseWindowColor, uGlowColor * 2.0, uHover);
+              vec3 windowColor = enhancedWindowColor * windowShape * windowActive * flicker * (2.0 + uHover * 2.0);
               
               float fade = smoothstep(0.0, 0.3, vMyUv.y);
               diffuseColor.rgb = diffuseColor.rgb * fade + windowColor * 0.4;
