@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, memo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import gsap from 'gsap'
@@ -81,7 +81,7 @@ const starFragmentShader = `
   }
 `
 
-const CinematicStars = () => {
+const CinematicStars = memo(() => {
   const materialRef = useRef()
   const count = 7500
 
@@ -119,8 +119,8 @@ const CinematicStars = () => {
     return { positions, sizes, colorMix, phase, twinkleSpeed, twinkleAmount }
   }, [])
 
-  useFrame(({ clock }) => {
-    if (materialRef.current) materialRef.current.uniforms.uTime.value = clock.getElapsedTime()
+  useFrame(({ clock, delta }) => {
+    if (materialRef.current) materialRef.current.uniforms.uTime.value += delta
   })
 
   return (
@@ -147,12 +147,12 @@ const CinematicStars = () => {
       />
     </points>
   )
-}
+})
 
 // ------------------------------------------------------------------
 // Nebula ribbon — a procedural backdrop haze cloud
 // ------------------------------------------------------------------
-const NebulaRibbon = () => {
+const NebulaRibbon = memo(() => {
   const count  = 280
   const matRef = useRef()
 
@@ -177,10 +177,9 @@ const NebulaRibbon = () => {
     return { positions, sizes, opacities }
   }, [])
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, delta }) => {
     if (matRef.current) {
-      const t = clock.getElapsedTime()
-      matRef.current.uniforms.uTime.value = t
+      matRef.current.uniforms.uTime.value += delta
     }
   })
 
@@ -229,12 +228,12 @@ const NebulaRibbon = () => {
       />
     </points>
   )
-}
+})
 
 // ------------------------------------------------------------------
 // FloatingDust — Phase 2: more layers, blueish cold dust
 // ------------------------------------------------------------------
-const DustLayer = ({ count, zRange, speed, size, opacity, spread, color = '#ffffff' }) => {
+const DustLayer = memo(({ count, zRange, speed, size, opacity, spread, color = '#ffffff' }) => {
   const pointsRef = useRef()
 
   const positions = useMemo(() => {
@@ -247,10 +246,10 @@ const DustLayer = ({ count, zRange, speed, size, opacity, spread, color = '#ffff
     return arr
   }, [count, zRange, spread])
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, delta }) => {
     if (!pointsRef.current) return
+    pointsRef.current.rotation.y += delta * speed
     const t = clock.getElapsedTime()
-    pointsRef.current.rotation.y = t * speed
     pointsRef.current.position.y = Math.sin(t * speed * 4) * 0.22
   })
 
@@ -270,21 +269,21 @@ const DustLayer = ({ count, zRange, speed, size, opacity, spread, color = '#ffff
       />
     </points>
   )
-}
+})
 
-const FloatingDust = () => (
+const FloatingDust = memo(() => (
   <>
     <DustLayer count={100} zRange={[2, 6]}   speed={0.022} size={0.048} opacity={0.38} spread={16} color="#aac0ff" />
     <DustLayer count={180} zRange={[-4, 2]}  speed={0.010} size={0.030} opacity={0.24} spread={24} color="#c8d8ff" />
     <DustLayer count={140} zRange={[-16,-4]} speed={0.005} size={0.018} opacity={0.14} spread={34} color="#ffffff" />
     <DustLayer count={80}  zRange={[-8, -2]} speed={0.015} size={0.055} opacity={0.10} spread={18} color="#6644aa" />
   </>
-)
+))
 
 // ------------------------------------------------------------------
 // DebrisField, MeteorStreak, ShockwaveRing
 // ------------------------------------------------------------------
-const DebrisField = ({ intensityRef }) => {
+const DebrisField = memo(({ intensityRef }) => {
   const ref   = useRef()
   const count = 220
 
@@ -323,9 +322,9 @@ const DebrisField = ({ intensityRef }) => {
       />
     </points>
   )
-}
+})
 
-const MeteorStreak = ({ intensityRef }) => {
+const MeteorStreak = memo(({ intensityRef }) => {
   const ref      = useRef()
   const trailRef = useRef()
 
@@ -367,9 +366,9 @@ const MeteorStreak = ({ intensityRef }) => {
       </mesh>
     </group>
   )
-}
+})
 
-const ShockwaveRing = ({ intensityRef }) => {
+const ShockwaveRing = memo(({ intensityRef }) => {
   const ref = useRef()
 
   useFrame(() => {
@@ -392,12 +391,12 @@ const ShockwaveRing = ({ intensityRef }) => {
       />
     </mesh>
   )
-}
+})
 
 // ------------------------------------------------------------------
 // Ambient Space Improvements (Shooting Stars)
 // ------------------------------------------------------------------
-const ShootingStars = () => {
+const ShootingStars = memo(() => {
   const groupRef = useRef()
   const stars = useMemo(() => Array.from({ length: 8 }, () => ({
     x: (Math.random() - 0.5) * 60,
@@ -445,12 +444,22 @@ const ShootingStars = () => {
       ))}
     </group>
   )
-}
+})
 
 // ------------------------------------------------------------------
 // Timeline — Manages camera, transitions, and cinematic events
 // ------------------------------------------------------------------
-const Timeline = ({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
+const Timeline = memo(({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
+  // Reuse objects to avoid garbage collection every frame
+  const dummyCamera = useMemo(() => new THREE.PerspectiveCamera(), [])
+  const timelinePos = useMemo(() => new THREE.Vector3(), [])
+  const targetVec = useMemo(() => new THREE.Vector3(), [])
+  const offsetVec = useMemo(() => new THREE.Vector3(), [])
+  const camPosVec = useMemo(() => new THREE.Vector3(), [])
+  const upVec = useMemo(() => new THREE.Vector3(0, 1, 0), [])
+  const timelineQuat = useMemo(() => new THREE.Quaternion(), [])
+  const camQuat = useMemo(() => new THREE.Quaternion(), [])
+
   useFrame(({ clock, camera }) => {
     const elapsed = clock.getElapsedTime()
     const phase   = Math.min(elapsed, LOOP_DURATION)
@@ -477,7 +486,7 @@ const Timeline = ({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
     const tensionShake = triangle(16.8, 17.5, 21, 22, phase) * 0.045
 
     const ignitionShake = awakeningStage >= 5 ? 0.075 : 0
-    const timelinePos = new THREE.Vector3(
+    timelinePos.set(
       -0.7 + Math.sin(elapsed * 0.05) * 0.40 + handX + Math.sin(elapsed * 8) * tensionShake + Math.sin(elapsed * 31) * ignitionShake,
       -0.25 + Math.cos(elapsed * 0.044) * 0.22 + handY + Math.cos(elapsed * 7) * tensionShake * 0.6 + Math.cos(elapsed * 37) * ignitionShake * 0.7,
       baseDistance + breathing
@@ -486,11 +495,10 @@ const Timeline = ({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
     const lookX = 0.8 + Math.sin(elapsed * 0.06) * 0.12
     const lookY = 0.45 + Math.cos(elapsed * 0.05 + 0.5) * 0.06
     
-    const dummyCamera = new THREE.PerspectiveCamera()
     dummyCamera.position.copy(timelinePos)
     dummyCamera.lookAt(lookX, lookY, -6)
     dummyCamera.rotation.z += roll
-    const timelineQuat = dummyCamera.quaternion
+    timelineQuat.copy(dummyCamera.quaternion)
 
     // --- Camera Transition Logic ---
     if (!transitionRef.current.active && !transitionRef.current.targetPlanet) {
@@ -506,32 +514,31 @@ const Timeline = ({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
         // We are moving to or looking at a selected planet
         const pData = tPlanet.data
         const gRef = tPlanet.groupRef
-        const target = new THREE.Vector3()
         if (gRef) {
-          gRef.getWorldPosition(target)
+          gRef.getWorldPosition(targetVec)
         } else if (planetRef.current?.planetGroup) {
-          planetRef.current.planetGroup.getWorldPosition(target)
+          planetRef.current.planetGroup.getWorldPosition(targetVec)
         } else {
-          target.set(pData.cameraTarget.x, pData.cameraTarget.y, pData.cameraTarget.z)
+          targetVec.set(pData.cameraTarget.x, pData.cameraTarget.y, pData.cameraTarget.z)
         }
         
-        const offset = new THREE.Vector3(pData.cameraOffset.x, pData.cameraOffset.y, pData.cameraOffset.z)
+        offsetVec.set(pData.cameraOffset.x, pData.cameraOffset.y, pData.cameraOffset.z)
         
         if (t === 1) {
           if (!transitionRef.current.orbitStartPhase) {
             transitionRef.current.orbitStartPhase = elapsed
           }
           const orbitAngle = (elapsed - transitionRef.current.orbitStartPhase) * 0.05
-          offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), orbitAngle)
+          offsetVec.applyAxisAngle(upVec, orbitAngle)
         }
         
-        const camPos = target.clone().add(offset)
+        camPosVec.copy(targetVec).add(offsetVec)
         
-        dummyCamera.position.copy(camPos)
-        dummyCamera.lookAt(target)
-        const camQuat = dummyCamera.quaternion
+        dummyCamera.position.copy(camPosVec)
+        dummyCamera.lookAt(targetVec)
+        camQuat.copy(dummyCamera.quaternion)
 
-        camera.position.lerpVectors(transitionRef.current.startPos, camPos, t)
+        camera.position.lerpVectors(transitionRef.current.startPos, camPosVec, t)
         camera.quaternion.slerpQuaternions(transitionRef.current.startQuat, camQuat, t)
       } else {
         // Returning to timeline path
@@ -587,7 +594,7 @@ const Timeline = ({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
   })
 
   return null
-}
+})
 
 // ------------------------------------------------------------------
 // SceneContent

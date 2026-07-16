@@ -201,6 +201,9 @@ const Planet = forwardRef(({ position = [0, 0, -6], radius = 2.4, onPlanetSelect
   const isLocked = selectedPlanetId && selectedPlanetId !== planet.id
 
   const lightDir = useMemo(() => new THREE.Vector3(-0.6, 0.35, 0.55).normalize(), [])
+  
+  // Reuse Vector3 to avoid garbage collection in useFrame
+  const scaleVec = useMemo(() => new THREE.Vector3(), [])
 
   const planetUniforms = useMemo(() => ({
     uTime:          { value: 0 },
@@ -246,7 +249,8 @@ const Planet = forwardRef(({ position = [0, 0, -6], radius = 2.4, onPlanetSelect
       const awakeningPulse = awakeningStage ? Math.sin(state.clock.getElapsedTime() * (2 + awakeningStage)) * awakeningStage * 0.008 : 0
       const guidePulse = attentionPulse ? (Math.sin(state.clock.getElapsedTime() * 5) + 1) * 0.025 : 0
       const targetScale = (hovered ? 1.02 + pulse : 1) + awakeningPulse + guidePulse
-      planetGroupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
+      scaleVec.set(targetScale, targetScale, targetScale)
+      planetGroupRef.current.scale.lerp(scaleVec, 0.1)
     }
     if (atmosphereUniforms) {
       atmosphereUniforms.intensity.value = THREE.MathUtils.lerp(atmosphereUniforms.intensity.value, Math.max(hovered ? 0.35 : 0.2, awakeningStage * 0.18), 0.1)

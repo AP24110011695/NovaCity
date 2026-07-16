@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from 'react'
+import { useRef, useMemo, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -34,7 +34,7 @@ const generatePaths = (numPaths) => {
   return paths
 }
 
-export const DroneController = ({ numPaths = 8, vehiclesPerPath = 6 }) => {
+export const DroneController = memo(({ numPaths = 8, vehiclesPerPath = 6 }) => {
   const paths = useMemo(() => generatePaths(numPaths), [numPaths])
   
   const bodyRef = useRef()
@@ -147,4 +147,4 @@ export const DroneController = ({ numPaths = 8, vehiclesPerPath = 6 }) => {
       </instancedMesh>
     </group>
   )
-}
+})

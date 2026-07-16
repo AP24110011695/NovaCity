@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -10,7 +10,7 @@ const MAX_HEMISPHERE = 0.32
 
 const BREATH_PERIOD = 18
 
-export default function EnvironmentBreathing() {
+export default memo(function EnvironmentBreathing() {
   const ambientRef = useRef()
   const hemisphereRef = useRef()
 
@@ -68,4 +68,4 @@ export default function EnvironmentBreathing() {
       />
     </>
   )
-}
+})

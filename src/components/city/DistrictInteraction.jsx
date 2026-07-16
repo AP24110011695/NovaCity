@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, memo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import gsap from 'gsap';
@@ -8,7 +8,7 @@ import { DistrictLabel } from './DistrictLabel';
 import { LandmarkBuilding } from './LandmarkBuilding';
 import { LANDMARKS } from '../../data/landmarks';
 
-export const DistrictInteraction = ({ district }) => {
+export const DistrictInteraction = memo(({ district }) => {
   const { activeDistrictId, hoveredDistrictId, selectDistrict, setHovered } = useDistrictSelection();
   
   const groupRef = useRef();
@@ -110,4 +110,4 @@ export const DistrictInteraction = ({ district }) => {
       />
     </group>
   );
-};
+});
