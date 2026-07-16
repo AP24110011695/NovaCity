@@ -300,9 +300,9 @@ const SceneManager = () => {
 
             variants={sceneVariants}
 
-            initial="initial"
+            initial={{ opacity: 1 }}
 
-            animate="animate"
+            animate={{ opacity: 1 }}
 
             exit="exit"
 

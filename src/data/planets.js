@@ -11,29 +11,5 @@ export const planetsData = {
     cameraTarget: { x: 3.0, y: -0.1, z: -6.0 },
     // Medium-close framing keeps Nova Prime dominant during the ignition sequence.
     cameraOffset: { x: 0.5, y: 0.2, z: 9.2 },
-  },
-  'obsidian': {
-    id: 'obsidian',
-    name: 'Obsidian',
-    distance: '227.9M km',
-    radius: '3,389 km',
-    gravity: '3.7 m/s²',
-    moons: 0,
-    atmosphere: '95% CO₂, 3% N₂',
-    funFact: 'A barren, resource-rich world often used for deep mining operations.',
-    cameraTarget: { x: 0, y: 0, z: 0 }, 
-    cameraOffset: { x: 0, y: 0, z: 2.0 },
-  },
-  'celestia': {
-    id: 'celestia',
-    name: 'Celestia',
-    distance: '778.5M km',
-    radius: '69,911 km',
-    gravity: '24.7 m/s²',
-    moons: 79,
-    atmosphere: '89% H₂, 10% He',
-    funFact: 'A gas giant with violent storms, acting as a massive shield for inner planets.',
-    cameraTarget: { x: 0, y: 0, z: 0 },
-    cameraOffset: { x: 0, y: 0, z: 3.5 },
   }
 }

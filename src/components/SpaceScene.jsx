@@ -592,7 +592,7 @@ const Timeline = ({ planetRef, eventsRef, transitionRef, awakeningStage }) => {
 // ------------------------------------------------------------------
 // SceneContent
 // ------------------------------------------------------------------
-const SceneContent = ({ selectedPlanet, onPlanetSelect, awakeningStage, earthAttentionPulse, descentActive, onDescentProgress, onDescentComplete }) => {
+const SceneContent = ({ selectedPlanet, onPlanetSelect, awakeningStage, novaPrimeAttentionPulse, descentActive, onDescentProgress, onDescentComplete }) => {
   const planetRef = useRef()
   const eventsRef = useRef({ debris: 0, meteor: 0, shock: 0, city: 0 })
   const { camera } = useThree()
@@ -636,7 +636,7 @@ const SceneContent = ({ selectedPlanet, onPlanetSelect, awakeningStage, earthAtt
       <SceneFog />
       <CinematicStars />
       <NebulaRibbon />
-      <Planet ref={planetRef} position={[3.0, -0.1, -6]} radius={3.8} onPlanetSelect={(data, ref) => onPlanetSelect({data, groupRef: ref})} selectedPlanetId={selectedPlanet?.data?.id} awakeningStage={awakeningStage} attentionPulse={earthAttentionPulse} />
+      <Planet ref={planetRef} position={[3.0, -0.1, -6]} radius={3.8} onPlanetSelect={(data, ref) => onPlanetSelect({data, groupRef: ref})} selectedPlanetId={selectedPlanet?.data?.id} awakeningStage={awakeningStage} attentionPulse={novaPrimeAttentionPulse} />
       <FloatingDust />
       <ShootingStars />
       <DebrisField intensityRef={eventsRef} />
@@ -654,22 +654,22 @@ const SceneContent = ({ selectedPlanet, onPlanetSelect, awakeningStage, earthAtt
 const SpaceScene = ({ onEnterMission }) => {
   const [selectedPlanet, setSelectedPlanet] = useState(null)
   const [awakeningStage, setAwakeningStage] = useState(0)
-  const [showEarthHint, setShowEarthHint] = useState(false)
-  const [earthAttentionPulse, setEarthAttentionPulse] = useState(false)
+  const [showNovaPrimeHint, setShowNovaPrimeHint] = useState(false)
+  const [novaPrimeAttentionPulse, setNovaPrimeAttentionPulse] = useState(false)
   const [descentActive, setDescentActive] = useState(false)
   const [descentProgress, setDescentProgress] = useState(0)
 
   useEffect(() => {
     if (selectedPlanet) return undefined
-    const reveal = window.setTimeout(() => setShowEarthHint(true), 3600)
-    const repeat = window.setTimeout(() => { setShowEarthHint(true); setEarthAttentionPulse(true) }, 8600)
-    const settle = window.setTimeout(() => setEarthAttentionPulse(false), 10400)
+    const reveal = window.setTimeout(() => setShowNovaPrimeHint(true), 3600)
+    const repeat = window.setTimeout(() => { setShowNovaPrimeHint(true); setNovaPrimeAttentionPulse(true) }, 8600)
+    const settle = window.setTimeout(() => setNovaPrimeAttentionPulse(false), 10400)
     return () => { window.clearTimeout(reveal); window.clearTimeout(repeat); window.clearTimeout(settle) }
   }, [selectedPlanet])
 
-  const awakenEarth = (target) => {
+  const awakenNovaPrime = (target) => {
     if (descentActive || target?.data?.id !== 'nova-prime') return
-    setShowEarthHint(false)
+    setShowNovaPrimeHint(false)
     setSelectedPlanet(target)
     setAwakeningStage((stage) => {
       const next = Math.min(stage + 1, 5)
@@ -698,12 +698,12 @@ const SpaceScene = ({ onEnterMission }) => {
             from { opacity: 0; }
             to   { opacity: 1; }
           }
-          @keyframes earth-hint-in {
+          @keyframes nova-prime-hint-in {
             0% { opacity: 0; transform: translateY(10px); }
             16%, 72% { opacity: 1; transform: translateY(0); }
             100% { opacity: 0.55; transform: translateY(-3px); }
           }
-          @keyframes earth-burst {
+          @keyframes nova-prime-burst {
             from { opacity: 0; transform: scale(.4); }
             28% { opacity: 1; }
             to { opacity: 0; transform: scale(1.5); }
@@ -720,9 +720,9 @@ const SpaceScene = ({ onEnterMission }) => {
         <color attach="background" args={['#020305']} />
         <SceneContent 
            selectedPlanet={selectedPlanet} 
-           onPlanetSelect={awakenEarth}
+           onPlanetSelect={awakenNovaPrime}
            awakeningStage={awakeningStage}
-           earthAttentionPulse={earthAttentionPulse}
+           novaPrimeAttentionPulse={novaPrimeAttentionPulse}
            descentActive={descentActive}
            onDescentProgress={setDescentProgress}
            onDescentComplete={onEnterMission}
@@ -760,8 +760,8 @@ const SpaceScene = ({ onEnterMission }) => {
       />
 
       <TransitionHTML active={descentActive} progress={descentProgress} />
-      {!descentActive && showEarthHint && <div className="earth-awakening-hint pointer-events-none absolute inset-x-0 bottom-[14%] z-10 mx-auto w-fit max-w-[calc(100%-2rem)] rounded-full border border-cyan-200/15 bg-slate-950/35 px-5 py-3 text-center shadow-[0_0_28px_rgba(94,206,255,0.1)] backdrop-blur-md" style={{ animation: 'earth-hint-in 4.8s cubic-bezier(.16,1,.3,1) both' }}><p className="text-[10px] font-medium tracking-[.32em] text-white/90 sm:text-[11px] sm:tracking-[.42em]">KEEP CLICKING THE EARTH TO IGNITE THE COLONY</p><span className="mt-2 block text-[9px] tracking-[.28em] text-cyan-100/65">{awakeningStage ? `IGNITION ENERGY ${awakeningStage} / 5` : 'FIVE PULSES WILL AWAKEN NOVA CITY'}</span></div>}
-      {awakeningStage === 5 && !descentActive && <div className="pointer-events-none absolute inset-0 z-[12]" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(140,235,255,.95), rgba(40,130,255,.35) 22%, transparent 60%)', animation: 'earth-burst .78s ease-out forwards' }} />}
+      {!descentActive && showNovaPrimeHint && <div className="nova-prime-awakening-hint pointer-events-none absolute inset-x-0 bottom-[14%] z-10 mx-auto w-fit max-w-[calc(100%-2rem)] rounded-full border border-cyan-200/15 bg-slate-950/35 px-5 py-3 text-center shadow-[0_0_28px_rgba(94,206,255,0.1)] backdrop-blur-md" style={{ animation: 'nova-prime-hint-in 4.8s cubic-bezier(.16,1,.3,1) both' }}><p className="text-[10px] font-medium tracking-[.32em] text-white/90 sm:text-[11px] sm:tracking-[.42em]">KEEP CLICKING NOVA PRIME TO IGNITE THE COLONY</p><span className="mt-2 block text-[9px] tracking-[.28em] text-cyan-100/65">{awakeningStage ? `IGNITION ENERGY ${awakeningStage} / 5` : 'FIVE PULSES WILL AWAKEN NOVA CITY'}</span></div>}
+      {awakeningStage === 5 && !descentActive && <div className="pointer-events-none absolute inset-0 z-[12]" style={{ background: 'radial-gradient(circle at 50% 50%, rgba(140,235,255,.95), rgba(40,130,255,.35) 22%, transparent 60%)', animation: 'nova-prime-burst .78s ease-out forwards' }} />}
     </div>
   )
 }
